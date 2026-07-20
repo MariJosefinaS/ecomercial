@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="es-AR" class="light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mi planilla — E.Comercial</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+
+    <link rel="preload" as="style" href="http://localhost/build/assets/app-CAPROQrO.css" /><link rel="modulepreload" as="script" href="http://localhost/build/assets/app-BvRk9kiK.js" /><link rel="stylesheet" href="http://localhost/build/assets/app-CAPROQrO.css" data-navigate-track="reload" /><script type="module" src="http://localhost/build/assets/app-BvRk9kiK.js" data-navigate-track="reload"></script>    <!-- Livewire Styles --><style >[wire\:loading][wire\:loading], [wire\:loading\.delay][wire\:loading\.delay], [wire\:loading\.list-item][wire\:loading\.list-item], [wire\:loading\.inline-block][wire\:loading\.inline-block], [wire\:loading\.inline][wire\:loading\.inline], [wire\:loading\.block][wire\:loading\.block], [wire\:loading\.flex][wire\:loading\.flex], [wire\:loading\.table][wire\:loading\.table], [wire\:loading\.grid][wire\:loading\.grid], [wire\:loading\.inline-flex][wire\:loading\.inline-flex] {display: none;}[wire\:loading\.delay\.none][wire\:loading\.delay\.none], [wire\:loading\.delay\.shortest][wire\:loading\.delay\.shortest], [wire\:loading\.delay\.shorter][wire\:loading\.delay\.shorter], [wire\:loading\.delay\.short][wire\:loading\.delay\.short], [wire\:loading\.delay\.default][wire\:loading\.delay\.default], [wire\:loading\.delay\.long][wire\:loading\.delay\.long], [wire\:loading\.delay\.longer][wire\:loading\.delay\.longer], [wire\:loading\.delay\.longest][wire\:loading\.delay\.longest] {display: none;}[wire\:offline][wire\:offline] {display: none;}[wire\:dirty]:not(textarea):not(input):not(select) {display: none;}:root {--livewire-progress-bar-color: #2299dd;}[x-cloak] {display: none !important;}[wire\:cloak] {display: none !important;}dialog#livewire-error::backdrop {background-color: rgba(0, 0, 0, .6);}</style>
+</head>
+<body class="min-h-screen bg-canvas" x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false">
+
+    <aside class="fixed left-0 top-0 z-50 flex h-screen w-64 transform flex-col bg-anthracite text-gray-300 transition-transform duration-200 lg:!translate-x-0"
+       :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'">
+    
+    <div class="px-6 py-6">
+        <span class="inline-flex items-center gap-1 leading-none">
+    
+    <svg viewBox="0 0 48 48" class="h-8 w-8 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect x="5" y="5"  width="38" height="9" fill="#EC6A19" />
+        <rect x="5" y="5"  width="11" height="38" fill="#EC6A19" />
+        <rect x="5" y="34" width="38" height="9" fill="#EC6A19" />
+        <rect x="5" y="19.5" width="29" height="9" fill="#EC6A19" />
+        <rect x="16" y="19.5" width="8" height="9" fill="#FFFFFF" />
+    </svg>
+    <span class="text-xl font-extrabold tracking-tight text-white">.Comercial</span>
+</span>
+        <p class="mt-2 text-[11px] font-medium uppercase tracking-wide text-gray-400">Consola de Administración</p>
+    </div>
+
+    <nav class="mt-2 flex-1 space-y-1 overflow-y-auto px-3 pb-4">
+                    
+            <details class="group"  open >
+                <summary class="flex cursor-pointer list-none items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors
+                                bg-brand text-white">
+                    <span class="material-symbols-outlined text-[22px]">request_quote</span>
+                    <span class="flex-1">Cobranza</span>
+                    <span class="material-symbols-outlined text-[20px] opacity-70 transition-transform group-open:rotate-180">expand_more</span>
+                </summary>
+
+                <div class="mt-1 space-y-0.5 pl-4">
+                                                                    <a href="http://localhost/cobranza/planilla" wire:navigate
+                            aria-current="page"                            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
+                                  bg-white/10 text-white">
+                            <span class="material-symbols-outlined text-[18px] text-brand">receipt_long</span>
+                            Mi planilla
+                        </a>
+                                    </div>
+            </details>
+            </nav>
+
+    <div class="space-y-1 border-t border-white/10 px-3 py-4">
+        <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-gray-400 transition-colors hover:bg-white/5 hover:text-white">
+            <span class="material-symbols-outlined text-[22px]">help</span> Soporte
+        </a>
+        <form method="POST" action="http://localhost/logout">
+            <input type="hidden" name="_token" value="s48xsit8fF26nFnkdVoKryz5C3LTr2DOlOjeX9AY" autocomplete="off">            <button type="submit" class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-gray-400 transition-colors hover:bg-white/5 hover:text-white">
+                <span class="material-symbols-outlined text-[22px]">logout</span> Cerrar sesión
+            </button>
+        </form>
+    </div>
+</aside>
+
+    
+    <div x-show="sidebarOpen" x-cloak x-transition.opacity @click="sidebarOpen = false"
+         class="fixed inset-0 z-40 bg-black/40 lg:hidden"></div>
+
+    <main class="flex min-h-screen flex-col lg:ml-64">
+        <header class="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-gray-200 bg-white/90 px-4 backdrop-blur sm:px-6">
+    
+    <button @click="sidebarOpen = true" class="flex h-10 w-10 items-center justify-center rounded-full text-graphite transition hover:bg-gray-50 lg:hidden">
+        <span class="material-symbols-outlined">menu</span>
+    </button>
+
+    <div class="ml-auto flex items-center gap-3 sm:gap-4">
+        
+        <div wire:key="lw-3575691152-0-0-0" wire:snapshot="{&quot;data&quot;:{&quot;seenRef&quot;:null,&quot;leido&quot;:false},&quot;memo&quot;:{&quot;id&quot;:&quot;db8MBHcLKQ16sxo1TSJ9&quot;,&quot;name&quot;:&quot;shared.notifications&quot;,&quot;path&quot;:&quot;cobranza\/planilla&quot;,&quot;method&quot;:&quot;GET&quot;,&quot;release&quot;:&quot;a-a-a&quot;,&quot;children&quot;:[],&quot;scripts&quot;:[],&quot;assets&quot;:[],&quot;errors&quot;:[],&quot;locale&quot;:&quot;en&quot;,&quot;islands&quot;:[]},&quot;checksum&quot;:&quot;3bc80770e90c87460a5222ded27249dabd788e19657b4bd37e747bb9e7fe2519&quot;}" wire:effects="[]" wire:id="db8MBHcLKQ16sxo1TSJ9" wire:name="shared.notifications" class="relative" x-data="{ open: false }" @click.outside="open = false">
+    <button @click="open = !open; if (open) { $wire.abrir() }"
+            class="relative flex h-10 w-10 items-center justify-center rounded-full text-graphite transition hover:bg-gray-50">
+        <span class="material-symbols-outlined text-[22px]">notifications</span>
+        <!--[if BLOCK]><![endif]--><!--[if ENDBLOCK]><![endif]-->    </button>
+
+    <div x-show="open" x-cloak x-transition.origin.top.right
+         class="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-card">
+        <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+            <h4 class="text-sm font-extrabold uppercase tracking-wide text-ink">Mis novedades</h4>
+            <!--[if BLOCK]><![endif]--><!--[if ENDBLOCK]><![endif]-->        </div>
+
+        
+        <div class="max-h-96 overflow-y-auto">
+            <!--[if BLOCK]><![endif]-->                <p class="px-4 py-8 text-center text-sm text-muted">Estás al día, sin novedades nuevas.</p>
+            <!--[if ENDBLOCK]><![endif]-->        </div>
+
+        <a href="http://localhost/ventas" class="block bg-gray-50 px-4 py-2.5 text-center text-xs font-bold text-brand transition hover:bg-gray-100">Ver todas</a>
+    </div>
+</div>
+
+        
+        <div class="flex items-center gap-3 border-l border-gray-200 pl-3 sm:pl-4">
+            <div class="hidden text-right leading-tight sm:block">
+                <p class="text-sm font-bold text-ink">Josefina</p>
+                <p class="text-[11px] font-medium uppercase tracking-wide text-muted">—</p>
+            </div>
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-graphite text-sm font-bold text-white">J</div>
+        </div>
+    </div>
+</header>
+
+        <div class="flex-1 space-y-6 p-4 sm:p-6">
+            <div wire:snapshot="{&quot;data&quot;:{&quot;fecha&quot;:&quot;2026-07-20&quot;,&quot;cobradorId&quot;:14,&quot;mensaje&quot;:null,&quot;modalCobro&quot;:false,&quot;cobroCuotaId&quot;:null,&quot;cobroCliente&quot;:&quot;&quot;,&quot;cobroSugerido&quot;:0,&quot;cobroMonto&quot;:&quot;&quot;,&quot;cobroMedio&quot;:&quot;efectivo&quot;,&quot;cobroComprobante&quot;:null,&quot;cobroBanco&quot;:&quot;&quot;,&quot;cobroChequeNumero&quot;:&quot;&quot;,&quot;modalNoVisita&quot;:false,&quot;nvMotivo&quot;:&quot;ausente&quot;,&quot;nvNota&quot;:&quot;&quot;},&quot;memo&quot;:{&quot;id&quot;:&quot;s1nWEzUmCVhNfU0hVeHn&quot;,&quot;name&quot;:&quot;cobranza.planilla&quot;,&quot;path&quot;:&quot;cobranza\/planilla&quot;,&quot;method&quot;:&quot;GET&quot;,&quot;release&quot;:&quot;a-a-a&quot;,&quot;children&quot;:[],&quot;scripts&quot;:[],&quot;assets&quot;:[],&quot;errors&quot;:[],&quot;locale&quot;:&quot;en&quot;,&quot;islands&quot;:[]},&quot;checksum&quot;:&quot;3ae24cefe0e24ba41796853d378cfb60e4559b3b3597edaa25b5d4d8fcc2fa64&quot;}" wire:effects="{&quot;url&quot;:{&quot;fecha&quot;:{&quot;as&quot;:null,&quot;use&quot;:&quot;replace&quot;,&quot;alwaysShow&quot;:false,&quot;except&quot;:null},&quot;cobradorId&quot;:{&quot;as&quot;:&quot;cob&quot;,&quot;use&quot;:&quot;replace&quot;,&quot;alwaysShow&quot;:false,&quot;except&quot;:null}}}" wire:id="s1nWEzUmCVhNfU0hVeHn" wire:name="cobranza.planilla" class="space-y-6">
+
+    
+    
+    <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+            <h1 class="text-2xl font-extrabold text-ink">Mi planilla de cobranza</h1>
+            <p class="text-sm text-muted">Cuotas del día por modalidad · el moroso reaparece en la planilla de su plan</p>
+            <span class="mt-1 inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-0.5 text-[11px] font-bold text-brand">
+                <span class="material-symbols-outlined text-[14px]">person_pin_circle</span> Josefina
+            </span>
+        </div>
+        <div class="flex items-end gap-2">
+            <!--[if BLOCK]><![endif]--><!--[if ENDBLOCK]><![endif]-->            <div>
+                <label class="mb-1 block text-[11px] font-bold uppercase text-muted">Fecha</label>
+                <input type="date" wire:model.live="fecha" class="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
+            </div>
+            <!--[if BLOCK]><![endif]-->                <button type="button" wire:click="abrirNoVisita" class="flex items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-700 hover:bg-amber-100" title="Reportar que no cobraste este día">
+                    <span class="material-symbols-outlined text-[18px]">event_busy</span> No cobré
+                </button>
+            <!--[if ENDBLOCK]><![endif]-->        </div>
+    </div>
+
+    <!--[if BLOCK]><![endif]--><!--[if ENDBLOCK]><![endif]-->
+    <!--[if BLOCK]><![endif]-->        <div wire:key="grupo-diario">
+        <div class="rounded-xl border border-gray-100 bg-white shadow-card">
+    <!--[if BLOCK]><![endif]--><!--[if ENDBLOCK]><![endif]-->
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 p-4">
+                <div class="flex items-center gap-3">
+                    <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-anthracite text-white">
+                        <span class="material-symbols-outlined">receipt_long</span>
+                    </span>
+                    <div>
+                        <p class="text-base font-extrabold text-ink">Planilla Diaria</p>
+                        <div class="flex flex-wrap items-center gap-2 text-[11px] text-muted">
+                            <span class="rounded-full px-2 py-0.5 font-bold bg-gray-100 text-graphite">Sin abrir</span>
+                            <!--[if BLOCK]><![endif]--><!--[if ENDBLOCK]><![endif]-->                            <!--[if BLOCK]><![endif]--><!--[if ENDBLOCK]><![endif]-->                            <!--[if BLOCK]><![endif]--><!--[if ENDBLOCK]><![endif]-->                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <!--[if BLOCK]><![endif]-->                        <button type="button" wire:click="abrir('diario')" class="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">lock_open</span> Abrir</button>
+                    <!--[if ENDBLOCK]><![endif]-->                    <a href="http://localhost/cobranza/planilla/imprimir?cob=14&amp;fecha=2026-07-20&amp;modalidad=diario" target="_blank" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold text-graphite hover:bg-gray-100"><span class="material-symbols-outlined text-[16px]">print</span> Imprimir</button>
+                    <button type="button" wire:click="exportarCsv('diario')" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold text-graphite hover:bg-gray-100"><span class="material-symbols-outlined text-[16px]">download</span> Exportar</button>
+                </div>
+            </div>
+
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead><tr class="bg-gray-50 text-[11px] uppercase tracking-wide text-muted">
+                        <th class="px-4 py-2.5 font-bold">Cliente</th>
+                        <th class="px-4 py-2.5 font-bold">Crédito · Plan</th>
+                        <th class="px-4 py-2.5 text-center font-bold">Cuota</th>
+                        <th class="px-4 py-2.5 text-center font-bold">Atraso</th>
+                        <th class="px-4 py-2.5 text-right font-bold">Saldo</th>
+                        <th class="px-4 py-2.5 text-right font-bold">Total a cobrar</th>
+                        <th class="px-4 py-2.5"></th>
+                    </tr></thead>
+                    <tbody>
+                        <!--[if BLOCK]><![endif]-->                                                        <tr class="border-t border-gray-100 bg-green-50/40" wire:key="cuota-1">
+                                <td class="px-4 py-2.5">
+                                    <p class="font-bold text-ink">Ferretería El Roble</p>
+                                    <p class="text-[11px] text-muted">— <!--[if BLOCK]><![endif]--> · 380-4111-222 <!--[if ENDBLOCK]><![endif]--></p>
+                                </td>
+                                <td class="px-4 py-2.5"><p class="font-semibold text-graphite">FAC-1050</p><p class="text-[11px] text-muted">30% anticipo + 0,20 diario</p></td>
+                                <td class="px-4 py-2.5 text-center tabular">#1<p class="text-[11px] text-muted">07/07/2026</p></td>
+                                <td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-[11px] font-bold bg-gray-100 text-graphite">al día</span></td>
+                                <td class="px-4 py-2.5 text-right tabular">$0,00</td>
+                                <td class="px-4 py-2.5 text-right tabular font-bold text-ink">$0,00<!--[if BLOCK]><![endif]--><!--[if ENDBLOCK]><![endif]--></td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <!--[if BLOCK]><![endif]-->                                        <span class="inline-flex items-center gap-1 text-[11px] font-bold text-green-600"><span class="material-symbols-outlined text-[16px]">check_circle</span> Cobrada</span>
+                                    <!--[if ENDBLOCK]><![endif]-->                                </td>
+                            </tr>
+                                                                                <tr class="border-t border-gray-100 bg-green-50/40" wire:key="cuota-2">
+                                <td class="px-4 py-2.5">
+                                    <p class="font-bold text-ink">Ferretería El Roble</p>
+                                    <p class="text-[11px] text-muted">— <!--[if BLOCK]><![endif]--> · 380-4111-222 <!--[if ENDBLOCK]><![endif]--></p>
+                                </td>
+                                <td class="px-4 py-2.5"><p class="font-semibold text-graphite">FAC-1050</p><p class="text-[11px] text-muted">30% anticipo + 0,20 diario</p></td>
+                                <td class="px-4 py-2.5 text-center tabular">#2<p class="text-[11px] text-muted">08/07/2026</p></td>
+                                <td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-[11px] font-bold bg-gray-100 text-graphite">al día</span></td>
+                                <td class="px-4 py-2.5 text-right tabular">$0,00</td>
+                                <td class="px-4 py-2.5 text-right tabular font-bold text-ink">$0,00<!--[if BLOCK]><![endif]--><!--[if ENDBLOCK]><![endif]--></td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <!--[if BLOCK]><![endif]-->                                        <span class="inline-flex items-center gap-1 text-[11px] font-bold text-green-600"><span class="material-symbols-outlined text-[16px]">check_circle</span> Cobrada</span>
+                                    <!--[if ENDBLOCK]><![endif]-->                                </td>
+                            </tr>
+                                                                                <tr class="border-t border-gray-100 bg-green-50/40" wire:key="cuota-3">
+                                <td class="px-4 py-2.5">
+                                    <p class="font-bold text-ink">Ferretería El Roble</p>
+                                    <p class="text-[11px] text-muted">— <!--[if BLOCK]><![endif]--> · 380-4111-222 <!--[if ENDBLOCK]><![endif]--></p>
+                                </td>
+                                <td class="px-4 py-2.5"><p class="font-semibold text-graphite">FAC-1050</p><p class="text-[11px] text-muted">30% anticipo + 0,20 diario</p></td>
+                                <td class="px-4 py-2.5 text-center tabular">#3<p class="text-[11px] text-muted">09/07/2026</p></td>
+                                <td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-[11px] font-bold bg-gray-100 text-graphite">al día</span></td>
+                                <td class="px-4 py-2.5 text-right tabular">$0,00</td>
+                                <td class="px-4 py-2.5 text-right tabular font-bold text-ink">$0,00<!--[if BLOCK]><![endif]--><!--[if ENDBLOCK]><![endif]--></td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <!--[if BLOCK]><![endif]-->                                        <span class="inline-flex items-center gap-1 text-[11px] font-bold text-green-600"><span class="material-symbols-outlined text-[16px]">check_circle</span> Cobrada</span>
+                                    <!--[if ENDBLOCK]><![endif]-->                                </td>
+                            </tr>
+                                                                                <tr class="border-t border-gray-100 " wire:key="cuota-4">
+                                <td class="px-4 py-2.5">
+                                    <p class="font-bold text-ink">Ferretería El Roble</p>
+                                    <p class="text-[11px] text-muted">— <!--[if BLOCK]><![endif]--> · 380-4111-222 <!--[if ENDBLOCK]><![endif]--></p>
+                                </td>
+                                <td class="px-4 py-2.5"><p class="font-semibold text-graphite">FAC-1050</p><p class="text-[11px] text-muted">30% anticipo + 0,20 diario</p></td>
+                                <td class="px-4 py-2.5 text-center tabular">#4<p class="text-[11px] text-muted">10/07/2026</p></td>
+                                <td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-[11px] font-bold bg-red-100 text-red-700">10 días</span></td>
+                                <td class="px-4 py-2.5 text-right tabular">$4.368,00</td>
+                                <td class="px-4 py-2.5 text-right tabular font-bold text-ink">$4.455,36<!--[if BLOCK]><![endif]--><p class="text-[11px] font-normal text-red-600">+$87,36 mora</p><!--[if ENDBLOCK]><![endif]--></td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <!--[if BLOCK]><![endif]-->                                        <!--[if BLOCK]><![endif]-->                                        <button type="button" wire:click="abrirCobro(4)" class="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">payments</span> Cobrar</button>
+                                        <!--[if ENDBLOCK]><![endif]-->                                    <!--[if ENDBLOCK]><![endif]-->                                </td>
+                            </tr>
+                                                                                <tr class="border-t border-gray-100 " wire:key="cuota-5">
+                                <td class="px-4 py-2.5">
+                                    <p class="font-bold text-ink">Ferretería El Roble</p>
+                                    <p class="text-[11px] text-muted">— <!--[if BLOCK]><![endif]--> · 380-4111-222 <!--[if ENDBLOCK]><![endif]--></p>
+                                </td>
+                                <td class="px-4 py-2.5"><p class="font-semibold text-graphite">FAC-1050</p><p class="text-[11px] text-muted">30% anticipo + 0,20 diario</p></td>
+                                <td class="px-4 py-2.5 text-center tabular">#5<p class="text-[11px] text-muted">11/07/2026</p></td>
+                                <td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-[11px] font-bold bg-red-100 text-red-700">9 días</span></td>
+                                <td class="px-4 py-2.5 text-right tabular">$4.368,00</td>
+                                <td class="px-4 py-2.5 text-right tabular font-bold text-ink">$4.446,62<!--[if BLOCK]><![endif]--><p class="text-[11px] font-normal text-red-600">+$78,62 mora</p><!--[if ENDBLOCK]><![endif]--></td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <!--[if BLOCK]><![endif]-->                                        <!--[if BLOCK]><![endif]-->                                        <button type="button" wire:click="abrirCobro(5)" class="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">payments</span> Cobrar</button>
+                                        <!--[if ENDBLOCK]><![endif]-->                                    <!--[if ENDBLOCK]><![endif]-->                                </td>
+                            </tr>
+                                                                                <tr class="border-t border-gray-100 " wire:key="cuota-6">
+                                <td class="px-4 py-2.5">
+                                    <p class="font-bold text-ink">Ferretería El Roble</p>
+                                    <p class="text-[11px] text-muted">— <!--[if BLOCK]><![endif]--> · 380-4111-222 <!--[if ENDBLOCK]><![endif]--></p>
+                                </td>
+                                <td class="px-4 py-2.5"><p class="font-semibold text-graphite">FAC-1050</p><p class="text-[11px] text-muted">30% anticipo + 0,20 diario</p></td>
+                                <td class="px-4 py-2.5 text-center tabular">#6<p class="text-[11px] text-muted">12/07/2026</p></td>
+                                <td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-[11px] font-bold bg-red-100 text-red-700">8 días</span></td>
+                                <td class="px-4 py-2.5 text-right tabular">$4.368,00</td>
+                                <td class="px-4 py-2.5 text-right tabular font-bold text-ink">$4.437,89<!--[if BLOCK]><![endif]--><p class="text-[11px] font-normal text-red-600">+$69,89 mora</p><!--[if ENDBLOCK]><![endif]--></td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <!--[if BLOCK]><![endif]-->                                        <!--[if BLOCK]><![endif]-->                                        <button type="button" wire:click="abrirCobro(6)" class="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">payments</span> Cobrar</button>
+                                        <!--[if ENDBLOCK]><![endif]-->                                    <!--[if ENDBLOCK]><![endif]-->                                </td>
+                            </tr>
+                                                                                <tr class="border-t border-gray-100 " wire:key="cuota-7">
+                                <td class="px-4 py-2.5">
+                                    <p class="font-bold text-ink">Ferretería El Roble</p>
+                                    <p class="text-[11px] text-muted">— <!--[if BLOCK]><![endif]--> · 380-4111-222 <!--[if ENDBLOCK]><![endif]--></p>
+                                </td>
+                                <td class="px-4 py-2.5"><p class="font-semibold text-graphite">FAC-1050</p><p class="text-[11px] text-muted">30% anticipo + 0,20 diario</p></td>
+                                <td class="px-4 py-2.5 text-center tabular">#7<p class="text-[11px] text-muted">13/07/2026</p></td>
+                                <td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-[11px] font-bold bg-orange-100 text-orange-700">7 días</span></td>
+                                <td class="px-4 py-2.5 text-right tabular">$4.368,00</td>
+                                <td class="px-4 py-2.5 text-right tabular font-bold text-ink">$4.429,15<!--[if BLOCK]><![endif]--><p class="text-[11px] font-normal text-red-600">+$61,15 mora</p><!--[if ENDBLOCK]><![endif]--></td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <!--[if BLOCK]><![endif]-->                                        <!--[if BLOCK]><![endif]-->                                        <button type="button" wire:click="abrirCobro(7)" class="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">payments</span> Cobrar</button>
+                                        <!--[if ENDBLOCK]><![endif]-->                                    <!--[if ENDBLOCK]><![endif]-->                                </td>
+                            </tr>
+                                                                                <tr class="border-t border-gray-100 " wire:key="cuota-8">
+                                <td class="px-4 py-2.5">
+                                    <p class="font-bold text-ink">Ferretería El Roble</p>
+                                    <p class="text-[11px] text-muted">— <!--[if BLOCK]><![endif]--> · 380-4111-222 <!--[if ENDBLOCK]><![endif]--></p>
+                                </td>
+                                <td class="px-4 py-2.5"><p class="font-semibold text-graphite">FAC-1050</p><p class="text-[11px] text-muted">30% anticipo + 0,20 diario</p></td>
+                                <td class="px-4 py-2.5 text-center tabular">#8<p class="text-[11px] text-muted">14/07/2026</p></td>
+                                <td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-[11px] font-bold bg-orange-100 text-orange-700">6 días</span></td>
+                                <td class="px-4 py-2.5 text-right tabular">$4.368,00</td>
+                                <td class="px-4 py-2.5 text-right tabular font-bold text-ink">$4.420,42<!--[if BLOCK]><![endif]--><p class="text-[11px] font-normal text-red-600">+$52,42 mora</p><!--[if ENDBLOCK]><![endif]--></td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <!--[if BLOCK]><![endif]-->                                        <!--[if BLOCK]><![endif]-->                                        <button type="button" wire:click="abrirCobro(8)" class="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">payments</span> Cobrar</button>
+                                        <!--[if ENDBLOCK]><![endif]-->                                    <!--[if ENDBLOCK]><![endif]-->                                </td>
+                            </tr>
+                                                                                <tr class="border-t border-gray-100 " wire:key="cuota-9">
+                                <td class="px-4 py-2.5">
+                                    <p class="font-bold text-ink">Ferretería El Roble</p>
+                                    <p class="text-[11px] text-muted">— <!--[if BLOCK]><![endif]--> · 380-4111-222 <!--[if ENDBLOCK]><![endif]--></p>
+                                </td>
+                                <td class="px-4 py-2.5"><p class="font-semibold text-graphite">FAC-1050</p><p class="text-[11px] text-muted">30% anticipo + 0,20 diario</p></td>
+                                <td class="px-4 py-2.5 text-center tabular">#9<p class="text-[11px] text-muted">15/07/2026</p></td>
+                                <td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-[11px] font-bold bg-orange-100 text-orange-700">5 días</span></td>
+                                <td class="px-4 py-2.5 text-right tabular">$4.368,00</td>
+                                <td class="px-4 py-2.5 text-right tabular font-bold text-ink">$4.411,68<!--[if BLOCK]><![endif]--><p class="text-[11px] font-normal text-red-600">+$43,68 mora</p><!--[if ENDBLOCK]><![endif]--></td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <!--[if BLOCK]><![endif]-->                                        <!--[if BLOCK]><![endif]-->                                        <button type="button" wire:click="abrirCobro(9)" class="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">payments</span> Cobrar</button>
+                                        <!--[if ENDBLOCK]><![endif]-->                                    <!--[if ENDBLOCK]><![endif]-->                                </td>
+                            </tr>
+                                                                                <tr class="border-t border-gray-100 " wire:key="cuota-10">
+                                <td class="px-4 py-2.5">
+                                    <p class="font-bold text-ink">Ferretería El Roble</p>
+                                    <p class="text-[11px] text-muted">— <!--[if BLOCK]><![endif]--> · 380-4111-222 <!--[if ENDBLOCK]><![endif]--></p>
+                                </td>
+                                <td class="px-4 py-2.5"><p class="font-semibold text-graphite">FAC-1050</p><p class="text-[11px] text-muted">30% anticipo + 0,20 diario</p></td>
+                                <td class="px-4 py-2.5 text-center tabular">#10<p class="text-[11px] text-muted">16/07/2026</p></td>
+                                <td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-[11px] font-bold bg-orange-100 text-orange-700">4 días</span></td>
+                                <td class="px-4 py-2.5 text-right tabular">$4.368,00</td>
+                                <td class="px-4 py-2.5 text-right tabular font-bold text-ink">$4.402,94<!--[if BLOCK]><![endif]--><p class="text-[11px] font-normal text-red-600">+$34,94 mora</p><!--[if ENDBLOCK]><![endif]--></td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <!--[if BLOCK]><![endif]-->                                        <!--[if BLOCK]><![endif]-->                                        <button type="button" wire:click="abrirCobro(10)" class="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">payments</span> Cobrar</button>
+                                        <!--[if ENDBLOCK]><![endif]-->                                    <!--[if ENDBLOCK]><![endif]-->                                </td>
+                            </tr>
+                                                                                <tr class="border-t border-gray-100 " wire:key="cuota-11">
+                                <td class="px-4 py-2.5">
+                                    <p class="font-bold text-ink">Ferretería El Roble</p>
+                                    <p class="text-[11px] text-muted">— <!--[if BLOCK]><![endif]--> · 380-4111-222 <!--[if ENDBLOCK]><![endif]--></p>
+                                </td>
+                                <td class="px-4 py-2.5"><p class="font-semibold text-graphite">FAC-1050</p><p class="text-[11px] text-muted">30% anticipo + 0,20 diario</p></td>
+                                <td class="px-4 py-2.5 text-center tabular">#11<p class="text-[11px] text-muted">17/07/2026</p></td>
+                                <td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-[11px] font-bold bg-amber-100 text-amber-700">3 días</span></td>
+                                <td class="px-4 py-2.5 text-right tabular">$4.368,00</td>
+                                <td class="px-4 py-2.5 text-right tabular font-bold text-ink">$4.394,21<!--[if BLOCK]><![endif]--><p class="text-[11px] font-normal text-red-600">+$26,21 mora</p><!--[if ENDBLOCK]><![endif]--></td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <!--[if BLOCK]><![endif]-->                                        <!--[if BLOCK]><![endif]-->                                        <button type="button" wire:click="abrirCobro(11)" class="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">payments</span> Cobrar</button>
+                                        <!--[if ENDBLOCK]><![endif]-->                                    <!--[if ENDBLOCK]><![endif]-->                                </td>
+                            </tr>
+                                                                                <tr class="border-t border-gray-100 " wire:key="cuota-12">
+                                <td class="px-4 py-2.5">
+                                    <p class="font-bold text-ink">Ferretería El Roble</p>
+                                    <p class="text-[11px] text-muted">— <!--[if BLOCK]><![endif]--> · 380-4111-222 <!--[if ENDBLOCK]><![endif]--></p>
+                                </td>
+                                <td class="px-4 py-2.5"><p class="font-semibold text-graphite">FAC-1050</p><p class="text-[11px] text-muted">30% anticipo + 0,20 diario</p></td>
+                                <td class="px-4 py-2.5 text-center tabular">#12<p class="text-[11px] text-muted">18/07/2026</p></td>
+                                <td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-[11px] font-bold bg-amber-100 text-amber-700">2 días</span></td>
+                                <td class="px-4 py-2.5 text-right tabular">$4.368,00</td>
+                                <td class="px-4 py-2.5 text-right tabular font-bold text-ink">$4.385,47<!--[if BLOCK]><![endif]--><p class="text-[11px] font-normal text-red-600">+$17,47 mora</p><!--[if ENDBLOCK]><![endif]--></td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <!--[if BLOCK]><![endif]-->                                        <!--[if BLOCK]><![endif]-->                                        <button type="button" wire:click="abrirCobro(12)" class="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">payments</span> Cobrar</button>
+                                        <!--[if ENDBLOCK]><![endif]-->                                    <!--[if ENDBLOCK]><![endif]-->                                </td>
+                            </tr>
+                                                                                <tr class="border-t border-gray-100 " wire:key="cuota-13">
+                                <td class="px-4 py-2.5">
+                                    <p class="font-bold text-ink">Ferretería El Roble</p>
+                                    <p class="text-[11px] text-muted">— <!--[if BLOCK]><![endif]--> · 380-4111-222 <!--[if ENDBLOCK]><![endif]--></p>
+                                </td>
+                                <td class="px-4 py-2.5"><p class="font-semibold text-graphite">FAC-1050</p><p class="text-[11px] text-muted">30% anticipo + 0,20 diario</p></td>
+                                <td class="px-4 py-2.5 text-center tabular">#13<p class="text-[11px] text-muted">19/07/2026</p></td>
+                                <td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-[11px] font-bold bg-amber-100 text-amber-700">1 día</span></td>
+                                <td class="px-4 py-2.5 text-right tabular">$4.368,00</td>
+                                <td class="px-4 py-2.5 text-right tabular font-bold text-ink">$4.376,74<!--[if BLOCK]><![endif]--><p class="text-[11px] font-normal text-red-600">+$8,74 mora</p><!--[if ENDBLOCK]><![endif]--></td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <!--[if BLOCK]><![endif]-->                                        <!--[if BLOCK]><![endif]-->                                        <button type="button" wire:click="abrirCobro(13)" class="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">payments</span> Cobrar</button>
+                                        <!--[if ENDBLOCK]><![endif]-->                                    <!--[if ENDBLOCK]><![endif]-->                                </td>
+                            </tr>
+                                                                                <tr class="border-t border-gray-100 " wire:key="cuota-14">
+                                <td class="px-4 py-2.5">
+                                    <p class="font-bold text-ink">Ferretería El Roble</p>
+                                    <p class="text-[11px] text-muted">— <!--[if BLOCK]><![endif]--> · 380-4111-222 <!--[if ENDBLOCK]><![endif]--></p>
+                                </td>
+                                <td class="px-4 py-2.5"><p class="font-semibold text-graphite">FAC-1050</p><p class="text-[11px] text-muted">30% anticipo + 0,20 diario</p></td>
+                                <td class="px-4 py-2.5 text-center tabular">#14<p class="text-[11px] text-muted">20/07/2026</p></td>
+                                <td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-[11px] font-bold bg-gray-100 text-graphite">al día</span></td>
+                                <td class="px-4 py-2.5 text-right tabular">$4.368,00</td>
+                                <td class="px-4 py-2.5 text-right tabular font-bold text-ink">$4.368,00<!--[if BLOCK]><![endif]--><!--[if ENDBLOCK]><![endif]--></td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <!--[if BLOCK]><![endif]-->                                        <!--[if BLOCK]><![endif]-->                                        <button type="button" wire:click="abrirCobro(14)" class="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">payments</span> Cobrar</button>
+                                        <!--[if ENDBLOCK]><![endif]-->                                    <!--[if ENDBLOCK]><![endif]-->                                </td>
+                            </tr>
+                        <!--[if ENDBLOCK]><![endif]-->                    </tbody>
+                </table>
+            </div>
+
+            
+            <div class="mt-1 border-t-2 border-gray-100 bg-gray-50/70 px-4 py-3">
+                <p class="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted">Resumen de la jornada</p>
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="rounded-xl border border-gray-100 bg-white p-3 text-center shadow-soft">
+                        <p class="text-[11px] font-bold uppercase text-muted">Esperado</p>
+                        <p class="tabular text-lg font-extrabold text-ink">$48.528,48</p>
+                    </div>
+                    <div class="rounded-xl border border-gray-100 bg-white p-3 text-center shadow-soft">
+                        <p class="text-[11px] font-bold uppercase text-muted">Cobrado</p>
+                        <p class="tabular text-lg font-extrabold text-green-600">$13.104,00</p>
+                    </div>
+                    <div class="rounded-xl border border-gray-100 bg-white p-3 text-center shadow-soft">
+                        <p class="text-[11px] font-bold uppercase text-muted">Eficacia</p>
+                        <p class="tabular text-lg font-extrabold text-red-600">27,0%</p>
+                    </div>
+                </div>
+            </div>
+</div>
+        </div>
+    <!--[if ENDBLOCK]><![endif]-->
+    
+    <!--[if BLOCK]><![endif]--><!--[if ENDBLOCK]><![endif]-->
+    
+    <!--[if BLOCK]><![endif]--><!--[if ENDBLOCK]><![endif]--></div>
+        </div>
+
+        <footer class="flex items-center justify-between border-t border-gray-200 px-6 py-3 text-xs font-medium text-muted"
+        x-data="{ now: new Date().toLocaleTimeString('es-AR') }"
+        x-init="setInterval(() => now = new Date().toLocaleTimeString('es-AR'), 1000)">
+    <span class="flex items-center gap-1.5">
+        <span class="h-2 w-2 rounded-full bg-success"></span> Última sincronización: hace 1 min
+    </span>
+    <span class="tabular" x-text="now">--:--:--</span>
+</footer>
+    </main>
+
+    <!-- Livewire Scripts -->
+<script src="http://localhost/livewire-ab135c86/livewire.js?id=4735e441"   data-csrf="s48xsit8fF26nFnkdVoKryz5C3LTr2DOlOjeX9AY" data-module-url="http://localhost/livewire-ab135c86" data-update-uri="http://localhost/livewire-ab135c86/update" data-navigate-once="true"></script>
+</body>
+</html>
