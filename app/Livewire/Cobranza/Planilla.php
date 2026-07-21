@@ -37,6 +37,10 @@ class Planilla extends Component
 
     public ?string $mensaje = null;
 
+    // Último recibo generado (para ofrecer "Ver recibo" tras cobrar).
+    public ?int $ultimoReciboCobroId = null;
+    public bool $ultimoReciboEnviado = false;
+
     // ===== Modal de cobro (monto libre + medio + comprobante) =====
     public bool $modalCobro = false;
     public ?int $cobroCuotaId = null;
@@ -255,8 +259,30 @@ class Planilla extends Component
         }
 
         $r = Cobranza::registrarPago($cuota, $partes, ['cobrador_id' => $this->cobradorId], $this->fechaCarbon());
-        $this->mensaje = $this->cobroCliente . ' — ' . $r['mensaje'];
+        $this->ultimoReciboCobroId = $r['cobro_id'] ?? null;
+        $this->ultimoReciboEnviado = (bool) ($r['recibo_enviado'] ?? false);
+        $this->mensaje = $this->cobroCliente . ' — ' . $r['mensaje']
+            . ($this->ultimoReciboEnviado ? ' 📧 Recibo enviado al cliente.' : '');
         $this->cerrarCobro();
+    }
+
+    /** Reenvía por mail el recibo de un cobro (anti-IDOR: solo cobros de la zona del cobrador). */
+    public function reenviarRecibo(int $cobroId): void
+    {
+        $this->autorizar('registrar_cobro');
+        $cobro = \App\Models\Cobro::find($cobroId);
+        if (! $cobro) {
+            return;
+        }
+        // El cobrador de campo solo puede reenviar recibos de SU zona/cobro.
+        if (! $this->esAdmin() && $cobro->cobrador_id !== auth()->id()
+            && ! Zona::where('id', $cobro->zona_id)->where('cobrador_id', auth()->id())->exists()) {
+            return;
+        }
+        $ok = \App\Support\Recibo::enviarPorMail($cobro);
+        $this->mensaje = $ok
+            ? 'Recibo reenviado al cliente por mail.'
+            : 'No se pudo enviar: el cliente no tiene email cargado.';
     }
 
     /** Cuota cobrable por este usuario (existe, pendiente, de su zona salvo admin). Anti-IDOR. */
@@ -336,11 +362,36 @@ class Planilla extends Component
         }, $nombre, ['Content-Type' => 'text/csv']);
     }
 
+    /** Exporta a PDF (descarga) la planilla de una modalidad usando dompdf (landscape, cabe en A4). */
+    public function exportarPdf(string $modalidad)
+    {
+        $this->autorizar('ver_cobranza');
+        $f = $this->fechaCarbon();
+        $cobrador = User::find($this->cobradorId);
+        $cuotas = PlanillaCalc::cuotasDelDia($this->cobradorId, $f);
+        $filas = PlanillaCalc::filas($cuotas, $f, $modalidad);
+        $tot = PlanillaCalc::totales($cuotas, $f, $modalidad);
+
+        $nombre = 'planilla_' . $modalidad . '_' . ($cobrador?->name ? str($cobrador->name)->slug() : $this->cobradorId) . '_' . $f->format('Y-m-d') . '.pdf';
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('cobranza.planilla-pdf', [
+            'filas' => $filas, 'tot' => $tot, 'cobrador' => $cobrador, 'fecha' => $f, 'modalidad' => $modalidad,
+        ])->setPaper('a4', 'landscape');
+
+        return response()->streamDownload(fn () => print($pdf->output()), $nombre, ['Content-Type' => 'application/pdf']);
+    }
+
     public function render()
     {
         $f = $this->fechaCarbon();
         $cuotas = PlanillaCalc::cuotasDelDia($this->cobradorId, $f);
         $cobrador = User::find($this->cobradorId);
+
+        // Mapa cuota → último cobro (para el enlace "Ver recibo" en las filas cobradas).
+        $recibosPorCuota = $cuotas->isNotEmpty()
+            ? \App\Models\Cobro::whereIn('cuota_id', $cuotas->pluck('id'))
+                ->selectRaw('cuota_id, max(id) as id')->groupBy('cuota_id')->pluck('id', 'cuota_id')
+            : collect();
 
         $grupos = PlanillaCalc::modalidadesPresentes($cuotas)->map(function (string $modalidad) use ($f, $cuotas) {
             $p = $this->planilla($modalidad);
@@ -372,6 +423,7 @@ class Planilla extends Component
             'esAdmin' => $this->esAdmin(),
             'puedeAuditar' => \App\Support\Permisos::puede(auth()->user()?->rol, 'auditar_cobranza'),
             'cobradores' => $cobradores,
+            'recibosPorCuota' => $recibosPorCuota,
         ]);
     }
 }

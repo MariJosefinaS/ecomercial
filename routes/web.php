@@ -85,6 +85,18 @@ Route::middleware(['auth', 'permiso'])->group(function () {
             'modalidad' => $modalidad,
         ]);
     })->name('cobranza.planilla.imprimir');
+    // Recibo de un cobro (PDF) — comprobante para el cliente. Anti-IDOR: el cobrador solo ve los de su zona.
+    Route::get('/cobranza/recibo/{cobro}', function (\App\Models\Cobro $cobro) {
+        $u = Auth::user();
+        abort_unless(\App\Support\Permisos::puede($u?->rol, 'ver_cobranza'), 403);
+        $esAdmin = $u?->esRol('super_admin', 'admin_local') ?? false;
+        if (! $esAdmin) {
+            $propio = $cobro->cobrador_id === $u->id
+                || \App\Models\Zona::where('id', $cobro->zona_id)->where('cobrador_id', $u->id)->exists();
+            abort_unless($propio, 403);
+        }
+        return \App\Support\Recibo::pdf($cobro)->stream(\App\Support\Recibo::nombreArchivo($cobro));
+    })->name('cobranza.recibo');
     Route::get('/tesoreria', TesoreriaIndex::class)->name('tesoreria');
     Route::get('/devoluciones', DevolucionesIndex::class)->name('devoluciones');
     Route::get('/reportes', ReportesIndex::class)->name('reportes');

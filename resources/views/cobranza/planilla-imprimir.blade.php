@@ -11,12 +11,13 @@
         .sheet { max-width: 1000px; margin: 0 auto; background: #fff; border: 2px solid #111827; border-radius: 10px; padding: 14px 16px; }
         .toolbar { max-width: 1000px; margin: 0 auto 12px; display: flex; justify-content: flex-end; }
         .btn { background: #EC6A19; color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 700; font-size: 13px; cursor: pointer; }
-        .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111827; padding-bottom: 8px; margin-bottom: 8px; }
+        .head { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111827; padding-bottom: 8px; margin-bottom: 8px; }
         .head .marca { font-weight: 800; font-size: 16px; letter-spacing: .5px; } .head .marca b { color: #EC6A19; }
         .head .titulo { font-size: 15px; font-weight: 800; text-transform: uppercase; }
         .head .meta { text-align: right; font-size: 12px; } .head .meta b { font-size: 13px; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 5px 6px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+        .tabla-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table { width: 100%; border-collapse: collapse; min-width: 720px; }
+        th, td { padding: 5px 6px; border-bottom: 1px solid #e5e7eb; text-align: left; word-break: break-word; }
         th { background: #f9fafb; font-size: 10px; text-transform: uppercase; letter-spacing: .4px; color: #6b7280; }
         td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
         .cli { font-weight: 700; } .dom { color: #6b7280; font-size: 11px; }
@@ -26,7 +27,20 @@
         .firma { margin-top: 26px; display: flex; justify-content: space-between; gap: 40px; }
         .firma div { flex: 1; border-top: 1px solid #111827; padding-top: 4px; text-align: center; font-size: 11px; color: #374151; }
         .vacio { text-align: center; color: #6b7280; padding: 30px; }
-        @media print { body { background: #fff; padding: 0; font-size: 11px; } .toolbar { display: none; } .sheet { border: 0; } }
+        /* Imprime apaisado para que las 10 columnas entren completas en la hoja. */
+        @page { size: A4 landscape; margin: 8mm; }
+        @media print {
+            body { background: #fff; padding: 0; font-size: 10px; }
+            .toolbar { display: none; }
+            .sheet { border: 0; border-radius: 0; padding: 0; max-width: none; }
+            .tabla-wrap { overflow: visible; }
+            table { min-width: 0; }
+        }
+        /* En pantallas chicas (celular) no achicamos la tabla: se desliza dentro de su caja. */
+        @media (max-width: 640px) {
+            body { padding: 8px; }
+            .sheet { padding: 10px; }
+        }
     </style>
 </head>
 <body>
@@ -48,6 +62,7 @@
         @if (empty($filas))
             <p class="vacio">No hay cuotas para cobrar en esta fecha/modalidad.</p>
         @else
+            <div class="tabla-wrap">
             <table>
                 <thead>
                     <tr>
@@ -73,6 +88,7 @@
                     @endforeach
                 </tbody>
             </table>
+            </div>
 
             <div class="tot">
                 <span>Esperado: <b>{{ $money($tot['esperado']) }}</b></span>

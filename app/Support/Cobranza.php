@@ -7,6 +7,7 @@ use App\Models\CobroMedio;
 use App\Models\Cuota;
 use App\Models\MovimientoCaja;
 use App\Models\MovimientoCliente;
+use App\Support\Recibo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -139,12 +140,20 @@ class Cobranza
 
             $out = [
                 'ok' => true,
+                'cobro_id' => $cobro->id,
                 'monto' => $montoRecibido,
                 'excedente' => (float) $cobro->excedente,
                 'cuotas_saldadas' => $saldadas,
                 'saldo_a_favor' => round(max(0.0, $restante), 2),
             ];
         });
+
+        // Recibo por mail al cliente (comprobante + alerta post-cobro). Después del commit y
+        // protegido: un fallo de mail NO rompe el cobro (ver Recibo::enviarPorMail).
+        $out['recibo_enviado'] = false;
+        if (($out['ok'] ?? false) && ! empty($out['cobro_id']) && ($cobroModel = Cobro::find($out['cobro_id']))) {
+            $out['recibo_enviado'] = Recibo::enviarPorMail($cobroModel);
+        }
 
         $msg = 'Cobro registrado: $' . number_format($out['monto'], 2, ',', '.') . ' (' . ($unMedio ? ($detMedios) : "mixto: {$detMedios}") . ').';
         if (($out['cuotas_saldadas'] ?? 0) > 1) {

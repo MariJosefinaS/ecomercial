@@ -49,8 +49,15 @@
     </div>
 
     @if ($mensaje)
-        <div class="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-700">
-            <span class="material-symbols-outlined text-[18px]">check_circle</span> {{ $mensaje }}
+        <div class="flex flex-wrap items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-700">
+            <span class="material-symbols-outlined text-[18px]">check_circle</span>
+            <span class="min-w-0 flex-1">{{ $mensaje }}</span>
+            @if ($ultimoReciboCobroId)
+                <a href="{{ route('cobranza.recibo', $ultimoReciboCobroId) }}" target="_blank"
+                   class="inline-flex shrink-0 items-center gap-1 rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-bold text-green-700 hover:bg-green-100">
+                    <span class="material-symbols-outlined text-[16px]">receipt</span> Ver recibo
+                </a>
+            @endif
         </div>
     @endif
 
@@ -82,7 +89,21 @@
                         <button type="button" wire:click="auditar('{{ $g['modalidad'] }}')" class="inline-flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-700"><span class="material-symbols-outlined text-[16px]">fact_check</span> Aprobar auditoría</button>
                     @endif
                     <a href="{{ route('cobranza.planilla.imprimir', ['cob' => $cobrador?->id, 'fecha' => $fecha, 'modalidad' => $g['modalidad']]) }}" target="_blank" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold text-graphite hover:bg-gray-100"><span class="material-symbols-outlined text-[16px]">print</span> Imprimir</a>
-                    <button type="button" wire:click="exportarCsv('{{ $g['modalidad'] }}')" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold text-graphite hover:bg-gray-100"><span class="material-symbols-outlined text-[16px]">download</span> Exportar</button>
+                    <div class="relative" x-data="{ exp: false }" @keydown.escape.window="exp = false">
+                        <button type="button" @click="exp = !exp" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold text-graphite hover:bg-gray-100">
+                            <span class="material-symbols-outlined text-[16px]">download</span> Exportar
+                            <span class="material-symbols-outlined text-[14px] transition-transform" :class="exp && 'rotate-180'">expand_more</span>
+                        </button>
+                        <div x-show="exp" x-cloak @click.outside="exp = false" x-transition
+                             class="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-xl">
+                            <button type="button" @click="exp = false" wire:click="exportarCsv('{{ $g['modalidad'] }}')" class="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-bold text-graphite hover:bg-gray-50">
+                                <span class="material-symbols-outlined text-[18px] text-green-600">table_view</span> Excel (CSV)
+                            </button>
+                            <button type="button" @click="exp = false" wire:click="exportarPdf('{{ $g['modalidad'] }}')" class="flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2.5 text-xs font-bold text-graphite hover:bg-gray-50">
+                                <span class="material-symbols-outlined text-[18px] text-red-600">picture_as_pdf</span> PDF
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -113,7 +134,12 @@
                                 <td class="px-4 py-2.5 text-right tabular font-bold text-ink">{{ $money($r['total']) }}@if ($r['mora'] > 0)<p class="text-[11px] font-normal text-red-600">+{{ $money($r['mora']) }} mora</p>@endif</td>
                                 <td class="px-4 py-2.5 text-right">
                                     @if ($r['cobrada'])
-                                        <span class="inline-flex items-center gap-1 text-[11px] font-bold text-green-600"><span class="material-symbols-outlined text-[16px]">check_circle</span> Cobrada</span>
+                                        <div class="flex items-center justify-end gap-2">
+                                            <span class="inline-flex items-center gap-1 text-[11px] font-bold text-green-600"><span class="material-symbols-outlined text-[16px]">check_circle</span> Cobrada</span>
+                                            @if ($recibosPorCuota->has($r['id']))
+                                                <a href="{{ route('cobranza.recibo', $recibosPorCuota[$r['id']]) }}" target="_blank" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-bold text-graphite hover:bg-gray-100"><span class="material-symbols-outlined text-[14px]">receipt</span> Recibo</a>
+                                            @endif
+                                        </div>
                                     @else
                                         @puede('registrar_cobro')
                                         <button type="button" wire:click="abrirCobro({{ $r['id'] }})" class="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">payments</span> Cobrar</button>
@@ -152,7 +178,12 @@
                                 @if ($r['saldo'] != $r['total'])<p class="text-[11px] text-muted">Saldo {{ $money($r['saldo']) }}</p>@endif
                             </div>
                             @if ($r['cobrada'])
-                                <span class="inline-flex shrink-0 items-center gap-1 text-sm font-bold text-green-600"><span class="material-symbols-outlined text-[18px]">check_circle</span> Cobrada</span>
+                                <div class="flex shrink-0 flex-col items-end gap-1.5">
+                                    <span class="inline-flex items-center gap-1 text-sm font-bold text-green-600"><span class="material-symbols-outlined text-[18px]">check_circle</span> Cobrada</span>
+                                    @if ($recibosPorCuota->has($r['id']))
+                                        <a href="{{ route('cobranza.recibo', $recibosPorCuota[$r['id']]) }}" target="_blank" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold text-graphite hover:bg-gray-100"><span class="material-symbols-outlined text-[16px]">receipt</span> Recibo</a>
+                                    @endif
+                                </div>
                             @else
                                 @puede('registrar_cobro')
                                 <button type="button" wire:click="abrirCobro({{ $r['id'] }})" class="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition active:scale-95 hover:bg-brand-dark"><span class="material-symbols-outlined text-[20px]">payments</span> Cobrar</button>
