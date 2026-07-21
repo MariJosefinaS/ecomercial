@@ -59,6 +59,7 @@
             'atrasados' => ['Atrasados', 'running_with_errors'],
             'hoy'       => ['Vencen hoy', 'today'],
             'agenda'    => ['Agenda semanal', 'calendar_month'],
+            'rendicion' => ['Rendición', 'account_balance_wallet'],
         ];
         if ($puedeNovedades) {
             $tabs['novedades'] = ['Novedades (no-visita)', 'event_busy'];
@@ -292,6 +293,156 @@
                 @endforeach
             </div>
         </x-panel>
+    @endif
+
+    {{-- ================= RENDICIÓN (Tesorería) ================= --}}
+    @if ($tab === 'rendicion')
+        <div class="space-y-5">
+            {{-- Fecha + contexto --}}
+            <div class="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <label class="mb-1 block text-xs font-bold uppercase text-muted">Fecha de rendición</label>
+                    <input type="date" wire:model.live="rendFecha" class="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
+                </div>
+                <p class="text-xs text-muted">Elegí el <b>cobrador</b> en el filtro de arriba para rendir su efectivo. Transferencias y cheques se concilian uno por uno.</p>
+            </div>
+
+            @if ($rendicion)
+                @php
+                    $ef = $rendicion['efectivo'];
+                    $tr = $rendicion['transferencia'];
+                    $ch = $rendicion['cheque'];
+                    $esp = $ef['esperado_pendiente'];
+                    $rec = $rendRecibido !== '' ? (float) $rendRecibido : null;
+                    $dif = $rec === null ? null : round($rec - $esp, 2);
+                @endphp
+
+                {{-- ===== EFECTIVO ===== --}}
+                <x-panel>
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 p-4">
+                        <div class="flex items-center gap-3">
+                            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-green-100 text-green-700"><span class="material-symbols-outlined">payments</span></span>
+                            <div><p class="text-base font-extrabold text-ink">Efectivo</p><p class="text-[11px] text-muted">{{ $ef['cant'] }} cobro(s) · total {{ $money2($ef['total']) }}</p></div>
+                        </div>
+                        <div class="flex gap-4 text-right">
+                            <div><p class="text-[11px] font-bold uppercase text-muted">A rendir</p><p class="tabular text-lg font-extrabold text-ink">{{ $money2($esp) }}</p></div>
+                            <div><p class="text-[11px] font-bold uppercase text-muted">Ya rendido</p><p class="tabular text-lg font-extrabold text-green-600">{{ $money2($ef['ya_rendido']) }}</p></div>
+                        </div>
+                    </div>
+
+                    @if (! $filtroCobradorId)
+                        <p class="px-4 py-6 text-center text-sm text-muted"><span class="material-symbols-outlined mb-1 block text-2xl">person_search</span> Elegí un cobrador arriba para registrar su rendición de efectivo.</p>
+                    @elseif ($esp <= 0)
+                        <p class="px-4 py-6 text-center text-sm text-muted"><span class="material-symbols-outlined mb-1 block text-2xl text-green-500">task_alt</span> No hay efectivo pendiente de rendir para este cobrador en la fecha.</p>
+                    @else
+                        {{-- Formulario de rendición --}}
+                        <div class="grid grid-cols-1 gap-3 border-b border-gray-100 p-4 sm:grid-cols-4">
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold text-graphite">Efectivo recibido</label>
+                                <div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">$</span>
+                                    <input type="number" step="0.01" min="0" wire:model.live.debounce.400ms="rendRecibido" placeholder="{{ number_format($esp, 2, '.', '') }}" class="w-full rounded-lg border border-gray-200 py-2 pl-7 pr-3 text-sm outline-none focus:border-brand" /></div>
+                                @error('rendRecibido') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold text-graphite">Diferencia</label>
+                                <div class="rounded-lg border px-3 py-2 text-sm font-bold {{ $dif === null ? 'border-gray-200 text-muted' : ($dif < 0 ? 'border-red-200 bg-red-50 text-red-700' : ($dif > 0 ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-green-200 bg-green-50 text-green-700')) }}">
+                                    {{ $dif === null ? '—' : ($dif < 0 ? 'Falta ' . $money2(abs($dif)) : ($dif > 0 ? 'Sobra ' . $money2($dif) : 'Cuadra ✔')) }}
+                                </div>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="mb-1 block text-xs font-semibold text-graphite">Nota (opcional)</label>
+                                <div class="flex gap-2">
+                                    <input type="text" wire:model="rendNota" placeholder="Observación de la rendición…" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
+                                    <button type="button" wire:click="rendirEfectivo" wire:confirm="¿Registrar la rendición? Se marcarán los cobros en efectivo como rendidos y se ajustará la caja por la diferencia." class="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-brand-dark">Rendir</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Detalle de las partes en efectivo --}}
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm">
+                                <thead><tr class="bg-gray-50 text-[11px] uppercase tracking-wide text-muted"><th class="px-4 py-2.5 font-bold">Cliente</th><th class="px-4 py-2.5 font-bold">Cobrador</th><th class="px-4 py-2.5 text-center font-bold">Hora</th><th class="px-4 py-2.5 text-right font-bold">Monto</th><th class="px-4 py-2.5 text-center font-bold">Estado</th></tr></thead>
+                                <tbody>
+                                    @foreach ($ef['filas'] as $r)
+                                        <tr class="border-t border-gray-100 {{ $r['conciliado'] ? 'bg-green-50/40' : '' }}">
+                                            <td class="px-4 py-2.5 font-semibold text-ink">{{ $r['cliente'] }}</td>
+                                            <td class="px-4 py-2.5 text-graphite">{{ $r['cobrador'] }}</td>
+                                            <td class="px-4 py-2.5 text-center text-muted">{{ $r['hora'] }}</td>
+                                            <td class="px-4 py-2.5 text-right tabular font-bold text-ink">{{ $money2($r['monto']) }}</td>
+                                            <td class="px-4 py-2.5 text-center">
+                                                @if ($r['conciliado'])<span class="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-bold text-green-700">Rendido</span>
+                                                @else<span class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">Pendiente</span>@endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+
+                    {{-- Historial de rendiciones del día --}}
+                    @if ($rendicion['rendiciones']->isNotEmpty())
+                        <div class="border-t border-gray-100 bg-gray-50/60 px-4 py-3">
+                            <p class="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted">Rendiciones registradas</p>
+                            @foreach ($rendicion['rendiciones'] as $rd)
+                                <div class="flex flex-wrap items-center justify-between gap-2 py-1 text-xs">
+                                    <span class="text-graphite">{{ $rd->created_at?->format('H:i') }} · {{ $rd->registrador?->name ?? '—' }} · esperado {{ $money2($rd->total_esperado) }} · recibido {{ $money2($rd->total_recibido) }}</span>
+                                    <span class="font-bold {{ (float) $rd->diferencia < 0 ? 'text-red-600' : ((float) $rd->diferencia > 0 ? 'text-amber-600' : 'text-green-600') }}">
+                                        {{ (float) $rd->diferencia < 0 ? 'Faltó ' . $money2(abs($rd->diferencia)) : ((float) $rd->diferencia > 0 ? 'Sobró ' . $money2($rd->diferencia) : 'Cuadró') }}
+                                    </span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </x-panel>
+
+                {{-- ===== TRANSFERENCIAS y CHEQUES ===== --}}
+                @foreach ([['transferencia', $tr, 'Transferencias', 'swap_horiz', 'Confirmar en banco'], ['cheque', $ch, 'Cheques', 'account_balance', 'Ingresar a cartera']] as [$medioKey, $data, $titulo, $icono, $accion])
+                    <x-panel>
+                        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 p-4">
+                            <div class="flex items-center gap-3">
+                                <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700"><span class="material-symbols-outlined">{{ $icono }}</span></span>
+                                <div><p class="text-base font-extrabold text-ink">{{ $titulo }}</p><p class="text-[11px] text-muted">{{ $data['cant'] }} · total {{ $money2($data['total']) }}</p></div>
+                            </div>
+                            <div class="flex items-center gap-4 text-right">
+                                <div><p class="text-[11px] font-bold uppercase text-muted">Pendiente</p><p class="tabular text-lg font-extrabold text-amber-600">{{ $money2($data['pendiente']) }}</p></div>
+                                @if ($data['pendiente'] > 0)
+                                    <button type="button" wire:click="conciliarMedio('{{ $medioKey }}')" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold text-graphite hover:bg-gray-100">Conciliar todas</button>
+                                @endif
+                            </div>
+                        </div>
+                        @if (empty($data['filas']))
+                            <p class="px-4 py-6 text-center text-sm text-muted">Sin {{ mb_strtolower($titulo) }} en la fecha.</p>
+                        @else
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-sm">
+                                    <thead><tr class="bg-gray-50 text-[11px] uppercase tracking-wide text-muted"><th class="px-4 py-2.5 font-bold">Cliente</th><th class="px-4 py-2.5 font-bold">Detalle</th><th class="px-4 py-2.5 text-right font-bold">Monto</th><th class="px-4 py-2.5 text-center font-bold">Estado</th></tr></thead>
+                                    <tbody>
+                                        @foreach ($data['filas'] as $r)
+                                            <tr class="border-t border-gray-100 {{ $r['conciliado'] ? 'bg-green-50/40' : '' }}">
+                                                <td class="px-4 py-2.5 font-semibold text-ink">{{ $r['cliente'] }}<p class="text-[11px] font-normal text-muted">{{ $r['cobrador'] }} · {{ $r['hora'] }}</p></td>
+                                                <td class="px-4 py-2.5 text-graphite">
+                                                    @if ($r['banco']){{ $r['banco'] }}@endif @if ($r['cheque_numero'])· N° {{ $r['cheque_numero'] }}@endif
+                                                    @if ($r['comprobante'])<a href="{{ $r['comprobante'] }}" target="_blank" class="ml-1 inline-flex items-center gap-0.5 text-[11px] font-bold text-brand hover:underline"><span class="material-symbols-outlined text-[14px]">image</span> comprobante</a>@endif
+                                                </td>
+                                                <td class="px-4 py-2.5 text-right tabular font-bold text-ink">{{ $money2($r['monto']) }}</td>
+                                                <td class="px-4 py-2.5 text-center">
+                                                    @if ($r['conciliado'])
+                                                        <span class="inline-flex items-center gap-1 text-[11px] font-bold text-green-600"><span class="material-symbols-outlined text-[16px]">check_circle</span> Conciliado</span>
+                                                    @else
+                                                        <button type="button" wire:click="conciliarParte({{ $r['id'] }})" class="inline-flex items-center gap-1 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-sky-700"><span class="material-symbols-outlined text-[14px]">done</span> {{ $accion }}</button>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    </x-panel>
+                @endforeach
+            @endif
+        </div>
     @endif
 
     {{-- ================= NOVEDADES: "el cobrador no pasó" ================= --}}

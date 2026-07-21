@@ -66,6 +66,7 @@
             ['sub' => 'sucursales', 'label' => 'Sucursales',          'icon' => 'store',    'perm' => 'gestionar_locales'],
             ['sub' => 'conceptos',  'label' => 'Conceptos de precio', 'icon' => 'percent'],
             ['sub' => 'creditos',   'label' => 'Productos de crédito', 'icon' => 'credit_score'],
+            ['sub' => 'comisiones', 'label' => 'Comisiones de cobrador', 'icon' => 'paid', 'solo_super' => true],
             ['sub' => 'zonas',      'label' => 'Zonas de cobranza',   'icon' => 'pin_drop', 'perm' => 'gestionar_zonas'],
             ['sub' => 'categorias', 'label' => 'Categorías',          'icon' => 'category', 'perm' => 'gestionar_stock'],
         ]],
@@ -87,7 +88,7 @@
         @foreach ($nav as $item)
             @php
                 // Subsecciones visibles según permiso propio (si lo tienen).
-                $children = array_filter($item['children'], fn ($c) => ! isset($c['perm']) || Permisos::puede($rol, $c['perm']));
+                $children = array_filter($item['children'], fn ($c) => (! isset($c['perm']) || Permisos::puede($rol, $c['perm'])) && (! ($c['solo_super'] ?? false) || $rol === 'super_admin'));
                 // La sección está activa si estás en su ruta o en la de algún hijo (otra ruta).
                 $active = request()->routeIs($item['route'])
                     || collect($children)->contains(fn ($c) => isset($c['route']) && request()->routeIs($c['route']));

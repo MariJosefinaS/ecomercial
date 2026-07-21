@@ -370,4 +370,69 @@
     </x-panel>
     @endpuede
     @endif
+
+    {{-- ===== Comisiones de cobrador (SOLO super_admin) ===== --}}
+    @if ($sub === 'comisiones')
+        @if (! $esSuper)
+            <x-panel title="Comisiones de cobrador">
+                <p class="px-5 py-8 text-center text-sm text-muted"><span class="material-symbols-outlined mb-1 block text-2xl">lock</span> Solo el super administrador puede configurar las comisiones.</p>
+            </x-panel>
+        @else
+            @php $genNum = $comisionGeneral !== '' ? (float) $comisionGeneral : 0; @endphp
+            <x-panel title="Comisiones de cobrador">
+                <x-slot:actions>
+                    <button wire:click="guardarComisiones" class="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">save</span> Guardar</button>
+                </x-slot:actions>
+
+                <p class="px-5 pt-4 text-xs text-muted">La comisión es un <b>porcentaje sobre el monto cobrado y confirmado por Tesorería</b> (recién cuenta cuando el tesorero valida la rendición). Definí un <b>% general</b> para todos y, opcionalmente, un <b>% distinto</b> para algún cobrador — si lo dejás vacío, ese cobrador usa el general.</p>
+
+                {{-- % general --}}
+                <div class="m-5 rounded-xl border border-brand/20 bg-brand-soft/40 p-4">
+                    <label class="mb-1 block text-xs font-bold uppercase text-brand">% general (aplica a todos por defecto)</label>
+                    <div class="flex items-center gap-2">
+                        <div class="relative w-40">
+                            <input type="number" step="0.01" min="0" max="100" wire:model.live="comisionGeneral" class="w-full rounded-lg border border-gray-200 py-2 pl-3 pr-8 text-lg font-extrabold text-ink outline-none focus:border-brand" />
+                            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted">%</span>
+                        </div>
+                        <span class="text-xs text-muted">Ej: si cobra $100.000 confirmados y el general es {{ rtrim(rtrim(number_format($genNum, 2, ',', '.'), '0'), ',') }}%, su comisión ≈ ${{ number_format($genNum * 1000, 2, ',', '.') }}.</span>
+                    </div>
+                    @error('comisionGeneral') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                {{-- Override por cobrador --}}
+                <div class="overflow-x-auto px-5 pb-5">
+                    <table class="w-full text-left text-sm">
+                        <thead><tr class="bg-gray-50 text-[11px] uppercase tracking-wide text-muted">
+                            <th class="px-3 py-2.5 font-bold">Cobrador</th>
+                            <th class="px-3 py-2.5 font-bold">Rol</th>
+                            <th class="px-3 py-2.5 font-bold">% propio (vacío = general)</th>
+                            <th class="px-3 py-2.5 font-bold">% efectivo</th>
+                        </tr></thead>
+                        <tbody>
+                            @forelse ($comisionesCobradores as $i => $c)
+                                @php $propio = trim((string) $c['comision_pct']); $efectivo = $propio !== '' ? (float) $propio : $genNum; @endphp
+                                <tr class="border-t border-gray-100" wire:key="com-{{ $c['id'] }}">
+                                    <td class="px-3 py-2.5 font-bold text-ink">{{ $c['name'] }}</td>
+                                    <td class="px-3 py-2.5"><span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-graphite">{{ $c['rol'] }}</span></td>
+                                    <td class="px-3 py-2.5">
+                                        <div class="relative w-32">
+                                            <input type="number" step="0.01" min="0" max="100" wire:model="comisionesCobradores.{{ $i }}.comision_pct" placeholder="general" class="w-full rounded-lg border border-gray-200 py-1.5 pl-3 pr-7 text-sm font-semibold outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                                            <span class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted">%</span>
+                                        </div>
+                                        @error("comisionesCobradores.$i.comision_pct") <p class="mt-1 text-[11px] text-red-600">{{ $message }}</p> @enderror
+                                    </td>
+                                    <td class="px-3 py-2.5">
+                                        <span class="font-bold text-ink">{{ rtrim(rtrim(number_format($efectivo, 2, ',', '.'), '0'), ',') }}%</span>
+                                        @if ($propio === '')<span class="ml-1 text-[11px] text-muted">(general)</span>@else<span class="ml-1 text-[11px] font-bold text-brand">(propio)</span>@endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="4" class="px-4 py-8 text-center text-sm text-muted">No hay cobradores (usuarios con zona asignada). Asigná cobradores a zonas en <b>Zonas de cobranza</b>.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </x-panel>
+        @endif
+    @endif
 </div>

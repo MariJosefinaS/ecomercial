@@ -77,6 +77,11 @@ class Index extends Component
     public ?int $nuevaZonaLocal = null;
     public ?int $nuevaZonaCobrador = null;
 
+    /** Comisión de cobradores (solo super_admin). % general + override por cobrador. */
+    public string $comisionGeneral = '';
+    /** [ [id, name, rol, comision_pct(''|número)], ... ] solo cobradores (con zona). */
+    public array $comisionesCobradores = [];
+
     /** Definición de permisos agrupados (fuente única: App\Support\Permisos). */
     public function grupos(): array
     {
@@ -93,6 +98,50 @@ class Index extends Component
         $this->cargarSucursales();
         $this->cargarCategorias();
         $this->cargarZonas();
+        $this->cargarComisiones();
+    }
+
+    private function esSuper(): bool
+    {
+        return auth()->user()?->esRol('super_admin') ?? false;
+    }
+
+    // ===== Comisión de cobradores (solo super_admin) =====
+    private function cargarComisiones(): void
+    {
+        $this->comisionGeneral = (string) \App\Support\Comisiones::general();
+
+        // Solo cobradores = usuarios con al menos una zona asignada.
+        $this->comisionesCobradores = User::whereHas('zonasComoCobrador')->orderBy('name')->get()
+            ->map(fn (User $u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'rol' => Permisos::rolesNombres()[$u->rol] ?? $u->rol,
+                'comision_pct' => $u->comision_pct !== null ? (string) (float) $u->comision_pct : '',
+            ])->toArray();
+    }
+
+    public function guardarComisiones(): void
+    {
+        abort_unless($this->esSuper(), 403, 'Solo el super administrador puede configurar comisiones.');
+
+        $this->validate([
+            'comisionGeneral' => 'nullable|numeric|min:0|max:100',
+            'comisionesCobradores.*.comision_pct' => 'nullable|numeric|min:0|max:100',
+        ], attributes: ['comisionGeneral' => '% general']);
+
+        \App\Support\Comisiones::general(); // no-op para claridad
+        \App\Models\Parametro::set(\App\Support\Comisiones::CLAVE_GENERAL, (float) ($this->comisionGeneral ?: 0));
+
+        foreach ($this->comisionesCobradores as $c) {
+            $pct = trim((string) ($c['comision_pct'] ?? ''));
+            User::where('id', $c['id'])->update([
+                'comision_pct' => $pct === '' ? null : (float) $pct,   // vacío = usa el general
+            ]);
+        }
+
+        $this->cargarComisiones();
+        $this->mensaje = 'Comisiones guardadas. Los cobradores sin % propio usan el general.';
     }
 
     // ===== Zonas de cobranza (cobrador por zona) =====
@@ -548,6 +597,9 @@ class Index extends Component
 
     public function render()
     {
-        return view('livewire.configuracion.index', ['grupos' => $this->grupos()]);
+        return view('livewire.configuracion.index', [
+            'grupos' => $this->grupos(),
+            'esSuper' => $this->esSuper(),
+        ]);
     }
 }

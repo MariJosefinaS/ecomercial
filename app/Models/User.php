@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'telefono', 'avatar', 'password', 'rol', 'local_id', 'activo', 'ultimo_acceso', 'notificaciones_vistas_at'])]
+#[Fillable(['name', 'email', 'telefono', 'avatar', 'password', 'rol', 'local_id', 'activo', 'comision_pct', 'ultimo_acceso', 'notificaciones_vistas_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -30,9 +30,18 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'activo' => 'boolean',
+            'comision_pct' => 'decimal:2',
             'ultimo_acceso' => 'datetime',
             'notificaciones_vistas_at' => 'datetime',
         ];
+    }
+
+    /** % de comisión efectivo del cobrador: el propio, o el general si no tiene uno. */
+    public function comisionPctEfectivo(): float
+    {
+        return $this->comision_pct !== null
+            ? (float) $this->comision_pct
+            : \App\Models\Parametro::num('comision_cobrador_general', 0);
     }
 
     public function local(): BelongsTo { return $this->belongsTo(Local::class); }

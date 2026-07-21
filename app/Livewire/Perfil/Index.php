@@ -32,9 +32,16 @@ class Index extends Component
             $zonas = $u->zonasComoCobrador()->with('local')->get();
             $zonaIds = $zonas->pluck('id');
 
-            $cobradoHoy = (float) Cobro::where('cobrador_id', $u->id)->whereDate('fecha', $hoy)->sum('monto');
-            $cobradoMes = (float) Cobro::where('cobrador_id', $u->id)->where('fecha', '>=', $inicioMes)->sum('monto');
+            // Montos CONFIRMADOS por tesorería (conciliados) — recién estos cuentan.
+            $confirmadoMes = \App\Support\Comisiones::cobradoConfirmado($u->id, $inicioMes);
+            $pendienteMes = \App\Support\Comisiones::cobradoPendiente($u->id, $inicioMes);
+            $confirmadoHoy = \App\Support\Comisiones::cobradoConfirmado($u->id, $hoy->copy()->startOfDay(), $hoy->copy()->endOfDay());
             $pagosMes = Cobro::where('cobrador_id', $u->id)->where('fecha', '>=', $inicioMes)->count();
+
+            // Comisión = % (propio o general) sobre lo CONFIRMADO.
+            $comisionPct = \App\Support\Comisiones::pct($u);
+            $comisionPropia = $u->comision_pct !== null;
+            $comisionMes = \App\Support\Comisiones::comision($u, $confirmadoMes);
 
             $planMes = PlanillaCobranza::where('cobrador_id', $u->id)
                 ->where('fecha', '>=', $inicioMes->toDateString())->get();
@@ -42,12 +49,9 @@ class Index extends Component
             $cobrado = (float) $planMes->sum('total_cobrado');
             $eficacia = $esperado > 0 ? round($cobrado / $esperado * 100, 1) : null;
 
-            // Comisión estimada por tramos de eficacia (pedido del cliente; informativa por ahora).
-            $comisionPct = $eficacia === null ? null : ($eficacia >= 90 ? 7 : ($eficacia >= 85 ? 6 : 5));
-
             $clientes = $zonaIds->isNotEmpty() ? Cliente::whereIn('zona_id', $zonaIds)->count() : 0;
 
-            $stats = compact('zonas', 'cobradoHoy', 'cobradoMes', 'pagosMes', 'eficacia', 'comisionPct', 'clientes', 'esperado', 'cobrado');
+            $stats = compact('zonas', 'confirmadoHoy', 'confirmadoMes', 'pendienteMes', 'pagosMes', 'eficacia', 'comisionPct', 'comisionPropia', 'comisionMes', 'clientes');
         }
 
         return view('livewire.perfil.index', [

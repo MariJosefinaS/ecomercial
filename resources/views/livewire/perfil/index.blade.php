@@ -79,31 +79,35 @@
                 </div>
 
                 <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-soft">
-                    <p class="text-[11px] font-bold uppercase text-muted">Cobrado hoy</p>
-                    <p class="tabular mt-1 text-lg font-extrabold text-ink">{{ $money($stats['cobradoHoy']) }}</p>
+                    <p class="text-[11px] font-bold uppercase text-muted">Confirmado hoy</p>
+                    <p class="tabular mt-1 text-lg font-extrabold text-ink">{{ $money($stats['confirmadoHoy']) }}</p>
                 </div>
                 <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-soft">
-                    <p class="text-[11px] font-bold uppercase text-muted">Cobrado en el mes</p>
-                    <p class="tabular mt-1 text-lg font-extrabold text-green-600">{{ $money($stats['cobradoMes']) }}</p>
+                    <p class="text-[11px] font-bold uppercase text-muted">Confirmado en el mes</p>
+                    <p class="tabular mt-1 text-lg font-extrabold text-green-600">{{ $money($stats['confirmadoMes']) }}</p>
+                    <p class="text-[11px] text-muted">Validado por Tesorería</p>
                 </div>
                 <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-soft">
-                    <p class="text-[11px] font-bold uppercase text-muted">Pagos del mes</p>
-                    <p class="tabular mt-1 text-lg font-extrabold text-ink">{{ $stats['pagosMes'] }}</p>
+                    <p class="text-[11px] font-bold uppercase text-muted">Pendiente de confirmar</p>
+                    <p class="tabular mt-1 text-lg font-extrabold {{ $stats['pendienteMes'] > 0 ? 'text-amber-600' : 'text-muted' }}">{{ $money($stats['pendienteMes']) }}</p>
+                    <p class="text-[11px] text-muted">Aún no cuenta</p>
                 </div>
                 <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-soft">
                     <p class="text-[11px] font-bold uppercase text-muted">Clientes en cartera</p>
                     <p class="tabular mt-1 text-lg font-extrabold text-ink">{{ $stats['clientes'] }}</p>
                 </div>
-                <div class="rounded-2xl border border-brand/20 bg-brand-soft/40 p-4 shadow-soft">
-                    <p class="text-[11px] font-bold uppercase text-brand">Comisión estimada</p>
-                    @if ($stats['comisionPct'] === null)
-                        <p class="mt-1 text-lg font-extrabold text-muted">—</p>
-                    @else
-                        <p class="tabular mt-1 text-lg font-extrabold text-brand">{{ $stats['comisionPct'] }}%</p>
-                        <p class="text-[11px] text-muted">≈ {{ $money($stats['cobradoMes'] * $stats['comisionPct'] / 100) }}</p>
-                    @endif
+                {{-- Comisión a cobrar = % (propio o general) sobre lo CONFIRMADO --}}
+                <div class="col-span-2 rounded-2xl border border-brand/30 bg-brand-soft/40 p-4 shadow-soft sm:col-span-1">
+                    <p class="text-[11px] font-bold uppercase text-brand">Comisión a cobrar (mes)</p>
+                    <p class="tabular mt-1 text-2xl font-extrabold text-brand">{{ $money($stats['comisionMes']) }}</p>
+                    <p class="text-[11px] text-muted">
+                        {{ rtrim(rtrim(number_format($stats['comisionPct'], 2, ',', '.'), '0'), ',') }}% sobre lo confirmado
+                        <span class="font-bold {{ $stats['comisionPropia'] ? 'text-brand' : 'text-muted' }}">· {{ $stats['comisionPropia'] ? 'tuyo' : 'general' }}</span>
+                    </p>
                 </div>
             </div>
+
+            <p class="mt-2 text-[11px] text-muted"><span class="material-symbols-outlined align-middle text-[14px]">info</span> Tus cobros impactan y generan comisión <b>recién cuando Tesorería confirma la rendición</b>. Lo pendiente de confirmar todavía no suma.</p>
 
             {{-- Zonas asignadas --}}
             <div class="mt-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-soft">

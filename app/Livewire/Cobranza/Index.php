@@ -45,6 +45,11 @@ class Index extends Component
     public string $nvMotivo = 'ausente';
     public string $nvNota = '';
 
+    // ===== Rendición de efectivo (Tesorería) =====
+    public string $rendFecha = '';
+    public string $rendRecibido = '';
+    public string $rendNota = '';
+
     public function mount(): void
     {
         // Tablero de SUPERVISIÓN (todos los cobradores) — vive en Tesorería. El cobrador usa /cobranza/planilla.
@@ -52,6 +57,47 @@ class Index extends Component
         if ($this->nvFecha === '') {
             $this->nvFecha = Carbon::today()->toDateString();
         }
+        if ($this->rendFecha === '') {
+            $this->rendFecha = Carbon::today()->toDateString();
+        }
+    }
+
+    private function rendFechaCarbon(): Carbon
+    {
+        return Carbon::parse($this->rendFecha)->startOfDay();
+    }
+
+    /** Registra la rendición de efectivo del cobrador filtrado (esperado vs recibido + ajuste de caja). */
+    public function rendirEfectivo(): void
+    {
+        $this->autorizar('supervisar_cobranza');
+        if (! $this->filtroCobradorId) {
+            $this->mensaje = 'Elegí un cobrador para rendir su efectivo.';
+            return;
+        }
+        $this->validate(['rendRecibido' => 'required|numeric|min:0'], attributes: ['rendRecibido' => 'efectivo recibido']);
+
+        $r = \App\Support\Rendiciones::rendirEfectivo(
+            $this->filtroCobradorId, $this->rendFechaCarbon(), (float) $this->rendRecibido, $this->rendNota ?: null, auth()->id(),
+        );
+        $this->reset(['rendRecibido', 'rendNota']);
+        $this->mensaje = $r['mensaje'];
+    }
+
+    /** Concilia UNA parte (transferencia/cheque): la vi acreditada en el banco / ingresada a cartera. */
+    public function conciliarParte(int $cobroMedioId): void
+    {
+        $this->autorizar('supervisar_cobranza');
+        \App\Support\Rendiciones::conciliarParte($cobroMedioId, auth()->id());
+        $this->mensaje = 'Movimiento conciliado.';
+    }
+
+    /** Concilia TODAS las partes pendientes de un medio para el día/cobrador. */
+    public function conciliarMedio(string $medio): void
+    {
+        $this->autorizar('supervisar_cobranza');
+        $n = \App\Support\Rendiciones::conciliarMedio($medio, $this->filtroCobradorId, $this->rendFechaCarbon(), auth()->id());
+        $this->mensaje = $n > 0 ? "{$n} movimiento(s) conciliado(s)." : 'No había movimientos pendientes.';
     }
 
     /** Registrar el cobro de una cuota desde la planilla (reusa el servicio central). */
@@ -203,7 +249,13 @@ class Index extends Component
             ->orderBy('name')->pluck('name', 'id')->all();
         $zonas = Zona::where('activo', true)->orderBy('nombre')->pluck('nombre', 'id')->all();
 
+        // Datos de rendición (solo se computan si es la pestaña activa).
+        $rendicion = $this->tab === 'rendicion'
+            ? \App\Support\Rendiciones::resumen($this->filtroCobradorId, $this->rendFechaCarbon())
+            : null;
+
         return view('livewire.cobranza.index', [
+            'rendicion' => $rendicion,
             'kpis' => [
                 'atrasado' => $montoAtrasado,
                 'clientes_atrasados' => $clientesAtrasados,

@@ -67,6 +67,7 @@ class Permisos
                 'ver_tesoreria' => 'Ver tesorería',
                 'cargar_cheques' => 'Cargar / gestionar cheques',
                 'registrar_pago' => 'Registrar pagos (ingresos/egresos)',
+                'pagar_empleados' => 'Pagar a empleados / cuenta del cobrador',
             ],
             'Reportes' => [
                 'ver_reportes' => 'Ver reportes',
@@ -110,6 +111,7 @@ class Permisos
             'cobranza' => 'supervisar_cobranza',   // tablero de supervisión (vive en Tesorería)
             'cobranza.planilla' => 'ver_cobranza', // planilla del cobrador
             'tesoreria' => 'ver_tesoreria',
+            'tesoreria.empleados' => 'pagar_empleados',
             'devoluciones' => 'ver_devoluciones',
             'reportes' => 'ver_reportes',
             'usuarios' => 'ver_usuarios',
