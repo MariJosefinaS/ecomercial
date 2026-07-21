@@ -7,6 +7,7 @@ use App\Livewire\Cobranza\Planilla as CobranzaPlanilla;
 use App\Livewire\Compras\Index as ComprasIndex;
 use App\Livewire\Configuracion\Index as ConfiguracionIndex;
 use App\Livewire\Devoluciones\Index as DevolucionesIndex;
+use App\Livewire\Perfil\Index as PerfilIndex;
 use App\Livewire\Proveedores\Index as ProveedoresIndex;
 use App\Livewire\Recepcion\Index as RecepcionIndex;
 use App\Livewire\Traspasos\Index as TraspasosIndex;
@@ -36,6 +37,7 @@ Route::middleware(['auth', 'permiso'])->group(function () {
     Route::get('/', fn () => redirect()->route(\App\Support\Permisos::inicio(Auth::user()?->rol)));
 
     Route::view('/dashboard', 'dashboard')->name('dashboard');
+    Route::get('/perfil', PerfilIndex::class)->name('perfil'); // Mi perfil + estadísticas (accesible a todo rol)
     Route::get('/stock', StockIndex::class)->name('stock');
     Route::get('/stock/reposicion', StockReposicion::class)->name('stock.reposicion'); // Lote óptimo (EOQ)
     Route::get('/ventas', VentasIndex::class)->name('ventas');
