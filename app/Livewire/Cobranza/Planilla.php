@@ -42,11 +42,13 @@ class Planilla extends Component
     public ?int $cobroCuotaId = null;
     public string $cobroCliente = '';
     public float $cobroSugerido = 0;          // total a cobrar de la cuota (referencia)
-    // Pago libre repartido por medio (puede ser dividido: parte efectivo + parte transferencia + parte cheque).
-    public string $cobroEfectivo = '';
-    public string $cobroTransferencia = '';
-    public string $cobroCheque = '';
-    public $cobroComprobante = null;          // archivo (transferencia)
+    public string $cobroMonto = '';           // importe principal (prefill = total)
+    public string $cobroMedio = 'efectivo';   // medio del importe principal (efectivo/transferencia/cheque)
+    // Pago dividido: un 2º casillero con (total − principal) y su medio (efectivo/transferencia).
+    public bool $cobroDividir = false;
+    public string $cobroMonto2 = '';
+    public string $cobroMedio2 = 'transferencia';
+    public $cobroComprobante = null;          // archivo (si alguna parte es transferencia)
     public string $cobroBanco = '';
     public string $cobroChequeNumero = '';
 
@@ -159,13 +161,30 @@ class Planilla extends Component
         if (! $cuota) {
             return;
         }
-        $this->reset(['cobroEfectivo', 'cobroTransferencia', 'cobroCheque', 'cobroComprobante', 'cobroBanco', 'cobroChequeNumero']);
+        $this->reset(['cobroDividir', 'cobroMonto2', 'cobroComprobante', 'cobroBanco', 'cobroChequeNumero']);
         $this->resetValidation();
         $this->cobroCuotaId = $cuota->id;
         $this->cobroCliente = $cuota->cliente?->nombre ?? 'Cliente';
         $this->cobroSugerido = round($cuota->totalAcobrar($this->fechaCarbon()), 2);
-        $this->cobroEfectivo = (string) $this->cobroSugerido; // prefill todo efectivo; el cobrador reparte si es dividido
+        $this->cobroMonto = (string) $this->cobroSugerido;   // prefill = total; el cobrador lo edita/divide
+        $this->cobroMedio = 'efectivo';
+        $this->cobroMedio2 = 'transferencia';
         $this->modalCobro = true;
+    }
+
+    /** Al tildar "dividir" (o cambiar el importe principal) el 2º casillero = total − principal. */
+    public function updatedCobroDividir(): void
+    {
+        $this->cobroMonto2 = $this->cobroDividir
+            ? (string) max(0, round($this->cobroSugerido - (float) $this->cobroMonto, 2))
+            : '';
+    }
+
+    public function updatedCobroMonto(): void
+    {
+        if ($this->cobroDividir) {
+            $this->cobroMonto2 = (string) max(0, round($this->cobroSugerido - (float) $this->cobroMonto, 2));
+        }
     }
 
     public function cerrarCobro(): void
@@ -175,32 +194,34 @@ class Planilla extends Component
     }
 
     /** Registra el cobro con el monto y medio ingresados (usa el servicio central registrarPago). */
-    /** Total del pago = suma de las 3 partes (para mostrar en el modal). */
+    /** Total del pago = principal + (si está dividido) el 2º importe. */
     public function getCobroTotalProperty(): float
     {
-        return round((float) $this->cobroEfectivo + (float) $this->cobroTransferencia + (float) $this->cobroCheque, 2);
+        return round((float) $this->cobroMonto + ($this->cobroDividir ? (float) $this->cobroMonto2 : 0), 2);
     }
 
     public function registrarCobro(): void
     {
         $this->autorizar('registrar_cobro');
-        $ef = round((float) $this->cobroEfectivo, 2);
-        $tr = round((float) $this->cobroTransferencia, 2);
-        $ch = round((float) $this->cobroCheque, 2);
+        $m1 = round((float) $this->cobroMonto, 2);
+        $m2 = $this->cobroDividir ? round((float) $this->cobroMonto2, 2) : 0.0;
+        // ¿qué medios intervienen? (para pedir comprobante/cheque)
+        $medios = array_filter([$m1 > 0 ? $this->cobroMedio : null, $m2 > 0 ? $this->cobroMedio2 : null]);
+        $hayTransfer = in_array('transferencia', $medios, true);
+        $hayCheque = in_array('cheque', $medios, true);
 
         $this->validate([
-            'cobroEfectivo' => 'nullable|numeric|min:0',
-            'cobroTransferencia' => 'nullable|numeric|min:0',
-            'cobroCheque' => 'nullable|numeric|min:0',
-            'cobroComprobante' => $tr > 0 ? 'required|image|max:4096' : 'nullable|image|max:4096',
-            'cobroChequeNumero' => $ch > 0 ? 'required' : 'nullable',
+            'cobroMonto' => 'required|numeric|min:0',
+            'cobroMonto2' => $this->cobroDividir ? 'required|numeric|min:0' : 'nullable',
+            'cobroComprobante' => $hayTransfer ? 'required|image|max:4096' : 'nullable|image|max:4096',
+            'cobroChequeNumero' => $hayCheque ? 'required' : 'nullable',
         ], attributes: [
-            'cobroEfectivo' => 'efectivo', 'cobroTransferencia' => 'transferencia', 'cobroCheque' => 'cheque',
+            'cobroMonto' => 'importe', 'cobroMonto2' => 'segundo importe',
             'cobroComprobante' => 'comprobante', 'cobroChequeNumero' => 'número de cheque',
         ]);
 
-        if (round($ef + $tr + $ch, 2) <= 0) {
-            $this->addError('cobroEfectivo', 'Ingresá al menos un importe mayor a cero (podés dividir entre medios).');
+        if (round($m1 + $m2, 2) <= 0) {
+            $this->addError('cobroMonto', 'Ingresá un importe mayor a cero.');
             return;
         }
 
@@ -210,23 +231,30 @@ class Planilla extends Component
             return;
         }
 
-        // Armar las partes por medio (pago dividido).
-        $medios = [];
-        if ($ef > 0) {
-            $medios[] = ['medio' => 'efectivo', 'monto' => $ef];
+        // Subir el comprobante una sola vez (aplica a la parte que sea transferencia).
+        $comp = $hayTransfer && $this->cobroComprobante ? $this->cobroComprobante->store('comprobantes', 'public') : null;
+        $parte = function (string $medio, float $monto) use ($comp) {
+            $p = ['medio' => $medio, 'monto' => $monto];
+            if ($medio === 'transferencia') {
+                $p['comprobante'] = $comp;
+                $p['banco'] = $this->cobroBanco ?: null;
+            } elseif ($medio === 'cheque') {
+                $p['banco'] = $this->cobroBanco ?: null;
+                $p['cheque_numero'] = $this->cobroChequeNumero ?: null;
+            }
+
+            return $p;
+        };
+
+        $partes = [];
+        if ($m1 > 0) {
+            $partes[] = $parte($this->cobroMedio, $m1);
         }
-        if ($tr > 0) {
-            $medios[] = [
-                'medio' => 'transferencia', 'monto' => $tr,
-                'comprobante' => $this->cobroComprobante ? $this->cobroComprobante->store('comprobantes', 'public') : null,
-                'banco' => $this->cobroBanco ?: null,
-            ];
-        }
-        if ($ch > 0) {
-            $medios[] = ['medio' => 'cheque', 'monto' => $ch, 'banco' => $this->cobroBanco ?: null, 'cheque_numero' => $this->cobroChequeNumero ?: null];
+        if ($m2 > 0) {
+            $partes[] = $parte($this->cobroMedio2, $m2);
         }
 
-        $r = Cobranza::registrarPago($cuota, $medios, ['cobrador_id' => $this->cobradorId], $this->fechaCarbon());
+        $r = Cobranza::registrarPago($cuota, $partes, ['cobrador_id' => $this->cobradorId], $this->fechaCarbon());
         $this->mensaje = $this->cobroCliente . ' — ' . $r['mensaje'];
         $this->cerrarCobro();
     }

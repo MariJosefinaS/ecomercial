@@ -412,7 +412,7 @@
                     <h3 class="text-base font-extrabold text-ink">Productos de {{ $detalle['num'] }}</h3>
                     <button wire:click="cerrarDetalle" class="text-muted hover:text-danger"><span class="material-symbols-outlined">close</span></button>
                 </div>
-                <div class="max-h-[70vh] overflow-y-auto p-5">
+                <div class="max-h-[70vh] overflow-auto p-5">
                     <table class="w-full text-left text-sm">
                         <thead>
                             <tr class="text-[11px] uppercase tracking-wide text-muted">

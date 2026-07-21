@@ -59,6 +59,7 @@
     {{-- ===== Movimientos de caja ===== --}}
     @if ($tab === 'caja')
         <x-panel title="Movimientos de caja">
+            <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
                 <thead><tr class="text-[11px] uppercase tracking-wide text-muted"><th class="px-5 py-3 font-bold">Fecha</th><th class="px-5 py-3 font-bold">Concepto</th><th class="px-5 py-3 font-bold">Medio</th><th class="px-5 py-3 text-right font-bold">Ingreso</th><th class="px-5 py-3 text-right font-bold">Egreso</th></tr></thead>
                 <tbody class="tabular">
@@ -73,6 +74,7 @@
                     @endforeach
                 </tbody>
             </table>
+            </div>
         </x-panel>
     @endif
 
@@ -133,6 +135,7 @@
     {{-- ===== Proyección diaria ===== --}}
     @if ($tab === 'proyeccion')
         <x-panel title="Proyección de fondos (7 días)">
+            <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
                 <thead><tr class="text-[11px] uppercase tracking-wide text-muted"><th class="px-5 py-3 font-bold">Día</th><th class="px-5 py-3 text-right font-bold">Ingresos</th><th class="px-5 py-3 text-right font-bold">Egresos</th><th class="px-5 py-3 text-right font-bold">Neto</th><th class="px-5 py-3 text-right font-bold">Saldo proyectado</th></tr></thead>
                 <tbody class="tabular">
@@ -147,6 +150,7 @@
                     @endforeach
                 </tbody>
             </table>
+            </div>
         </x-panel>
     @endif
 </div>

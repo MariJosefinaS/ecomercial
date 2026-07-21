@@ -86,8 +86,8 @@
                 </div>
             </div>
 
-            {{-- Líneas --}}
-            <div class="overflow-x-auto">
+            {{-- Líneas — TABLA en desktop (md+) --}}
+            <div class="hidden overflow-x-auto md:block">
                 <table class="w-full text-left text-sm">
                     <thead><tr class="bg-gray-50 text-[11px] uppercase tracking-wide text-muted">
                         <th class="px-4 py-2.5 font-bold">Cliente</th>
@@ -126,6 +126,43 @@
                 </table>
             </div>
 
+            {{-- Líneas — TARJETAS en mobile (< md): una por cuota, sin scroll horizontal, botón grande --}}
+            <div class="divide-y divide-gray-100 md:hidden">
+                @foreach ($g['filas'] as $r)
+                    @php [$dcls, $dlbl] = $diasBadge($r['dias']); @endphp
+                    <div class="p-4 {{ $r['cobrada'] ? 'bg-green-50/40' : '' }}" wire:key="cuota-m-{{ $r['id'] }}">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <p class="truncate font-bold text-ink">{{ $r['cliente'] }}</p>
+                                <p class="truncate text-[11px] text-muted">{{ $r['domicilio'] ?: '—' }}@if ($r['telefono']) · {{ $r['telefono'] }}@endif</p>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-1.5">
+                                <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-graphite">#{{ $r['numero'] }}</span>
+                                <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ $dcls }}">{{ $dlbl }}</span>
+                            </div>
+                        </div>
+                        <div class="mt-1 flex items-center justify-between gap-2 text-[11px] text-muted">
+                            <span class="truncate">{{ $r['credito'] }} · {{ $r['plan'] }}</span>
+                            <span class="shrink-0">Vence {{ $r['vence'] }}</span>
+                        </div>
+                        <div class="mt-3 flex items-end justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-[11px] font-bold uppercase text-muted">Total a cobrar</p>
+                                <p class="tabular text-lg font-extrabold text-ink">{{ $money($r['total']) }}@if ($r['mora'] > 0)<span class="ml-1 text-[11px] font-normal text-red-600">+{{ $money($r['mora']) }} mora</span>@endif</p>
+                                @if ($r['saldo'] != $r['total'])<p class="text-[11px] text-muted">Saldo {{ $money($r['saldo']) }}</p>@endif
+                            </div>
+                            @if ($r['cobrada'])
+                                <span class="inline-flex shrink-0 items-center gap-1 text-sm font-bold text-green-600"><span class="material-symbols-outlined text-[18px]">check_circle</span> Cobrada</span>
+                            @else
+                                @puede('registrar_cobro')
+                                <button type="button" wire:click="abrirCobro({{ $r['id'] }})" class="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition active:scale-95 hover:bg-brand-dark"><span class="material-symbols-outlined text-[20px]">payments</span> Cobrar</button>
+                                @endpuede
+                            @endif
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
             {{-- Resumen de la jornada (abajo, separado de la info de cobranza) --}}
             <div class="mt-1 border-t-2 border-gray-100 bg-gray-50/70 px-4 py-3">
                 <p class="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted">Resumen de la jornada</p>
@@ -157,8 +194,8 @@
 
     {{-- ===== Modal de cobro (monto libre + medio + comprobante) ===== --}}
     @if ($modalCobro)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" wire:key="modal-cobro">
-            <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+        <div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center" wire:key="modal-cobro">
+            <div class="my-auto w-full max-w-md rounded-2xl bg-white shadow-2xl">
                 <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
                     <h3 class="flex items-center gap-2 text-base font-extrabold text-ink">
                         <span class="material-symbols-outlined text-brand">payments</span> Registrar cobro
@@ -166,54 +203,78 @@
                     <button type="button" wire:click="cerrarCobro" class="text-muted hover:text-ink"><span class="material-symbols-outlined">close</span></button>
                 </div>
 
-                <div class="space-y-3 p-5">
+                <div class="space-y-4 p-5">
                     <div class="flex items-center justify-between text-sm">
                         <span class="text-muted">Cliente: <span class="font-bold text-ink">{{ $cobroCliente }}</span></span>
                         <span class="text-muted">Total a cobrar: <span class="font-bold text-ink">${{ number_format($cobroSugerido, 2, ',', '.') }}</span></span>
                     </div>
-                    <p class="text-[11px] text-muted">Repartí lo que paga entre los medios (puede ser <b>dividido</b>: parte efectivo + parte transferencia + parte cheque). El total es la suma.</p>
 
-                    {{-- Efectivo --}}
+                    {{-- Importe principal --}}
                     <div>
                         <label class="mb-1 flex items-center justify-between text-xs font-semibold text-graphite">
-                            <span>Efectivo</span>
-                            <button type="button" wire:click="$set('cobroEfectivo', '{{ $cobroSugerido }}')" class="text-[11px] font-bold text-brand hover:underline">Poner el total acá</button>
+                            <span>Importe que paga el cliente</span>
+                            <button type="button" wire:click="$set('cobroMonto', '{{ $cobroSugerido }}')" class="text-[11px] font-bold text-brand hover:underline">Total: ${{ number_format($cobroSugerido, 2, ',', '.') }}</button>
                         </label>
                         <div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">$</span>
-                            <input type="number" step="0.01" min="0" wire:model.live.debounce.400ms="cobroEfectivo" class="w-full rounded-lg border border-gray-200 py-2 pl-7 pr-3 text-sm outline-none focus:border-brand" /></div>
-                        @error('cobroEfectivo') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            <input type="number" step="0.01" min="0" wire:model.live.debounce.400ms="cobroMonto" class="w-full rounded-lg border border-gray-200 py-2 pl-7 pr-3 text-sm outline-none focus:border-brand" /></div>
+                        @error('cobroMonto') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
 
-                    {{-- Transferencia --}}
+                    {{-- Medio del importe principal --}}
                     <div>
-                        <label class="mb-1 block text-xs font-semibold text-graphite">Transferencia</label>
-                        <div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">$</span>
-                            <input type="number" step="0.01" min="0" wire:model.live.debounce.400ms="cobroTransferencia" class="w-full rounded-lg border border-gray-200 py-2 pl-7 pr-3 text-sm outline-none focus:border-brand" /></div>
-                        @if ((float) $cobroTransferencia > 0)
-                            <div class="mt-2 space-y-2 rounded-xl border border-gray-100 bg-gray-50 p-3">
-                                <label class="block text-xs font-semibold text-graphite">Comprobante de la transferencia</label>
-                                <input type="file" wire:model="cobroComprobante" accept="image/*" class="block w-full text-xs text-graphite file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-white" />
-                                <div wire:loading wire:target="cobroComprobante" class="text-[11px] text-brand">Subiendo…</div>
-                                @error('cobroComprobante') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
-                                @if ($cobroComprobante)<p class="text-[11px] text-green-600">✓ Comprobante cargado</p>@endif
-                                <input type="text" wire:model="cobroBanco" placeholder="Banco (opcional)" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
-                            </div>
-                        @endif
+                        <label class="mb-1 block text-xs font-semibold text-graphite">Medio de pago</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            @foreach (['efectivo' => 'Efectivo', 'transferencia' => 'Transferencia', 'cheque' => 'Cheque'] as $val => $lbl)
+                                <button type="button" wire:click="$set('cobroMedio', '{{ $val }}')" class="rounded-lg border px-2 py-2 text-xs font-bold transition {{ $cobroMedio === $val ? 'border-brand bg-brand-soft text-brand' : 'border-gray-200 text-graphite hover:bg-gray-50' }}">{{ $lbl }}</button>
+                            @endforeach
+                        </div>
                     </div>
 
-                    {{-- Cheque --}}
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold text-graphite">Cheque</label>
-                        <div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">$</span>
-                            <input type="number" step="0.01" min="0" wire:model.live.debounce.400ms="cobroCheque" class="w-full rounded-lg border border-gray-200 py-2 pl-7 pr-3 text-sm outline-none focus:border-brand" /></div>
-                        @if ((float) $cobroCheque > 0)
-                            <div class="mt-2 grid grid-cols-2 gap-2 rounded-xl border border-gray-100 bg-gray-50 p-3">
-                                <input type="text" wire:model="cobroChequeNumero" placeholder="N° de cheque" class="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
-                                <input type="text" wire:model="cobroBanco" placeholder="Banco" class="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
-                                @error('cobroChequeNumero') <p class="col-span-2 text-xs text-red-600">{{ $message }}</p> @enderror
+                    {{-- Check: dividir el pago en dos medios --}}
+                    <label class="flex cursor-pointer items-center gap-2 text-sm font-semibold text-graphite">
+                        <input type="checkbox" wire:model.live="cobroDividir" class="rounded border-gray-300 text-brand focus:ring-brand/30" />
+                        El cliente pagó una parte por otro medio
+                    </label>
+
+                    @if ($cobroDividir)
+                        <div class="space-y-3 rounded-xl border border-brand/30 bg-brand-soft/40 p-3">
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold text-graphite">Segundo importe (resto del total)</label>
+                                <div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">$</span>
+                                    <input type="number" step="0.01" min="0" wire:model.live.debounce.400ms="cobroMonto2" class="w-full rounded-lg border border-gray-200 py-2 pl-7 pr-3 text-sm outline-none focus:border-brand" /></div>
+                                @error('cobroMonto2') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                             </div>
-                        @endif
-                    </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold text-graphite">Medio del segundo importe</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    @foreach (['efectivo' => 'Efectivo', 'transferencia' => 'Transferencia'] as $val => $lbl)
+                                        <button type="button" wire:click="$set('cobroMedio2', '{{ $val }}')" class="rounded-lg border px-2 py-2 text-xs font-bold transition {{ $cobroMedio2 === $val ? 'border-brand bg-white text-brand' : 'border-gray-200 text-graphite hover:bg-white/60' }}">{{ $lbl }}</button>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- Comprobante (si alguna parte es transferencia) --}}
+                    @if ($cobroMedio === 'transferencia' || ($cobroDividir && $cobroMedio2 === 'transferencia'))
+                        <div class="space-y-2 rounded-xl border border-gray-100 bg-gray-50 p-3">
+                            <label class="block text-xs font-semibold text-graphite">Comprobante de la transferencia</label>
+                            <input type="file" wire:model="cobroComprobante" accept="image/*" class="block w-full text-xs text-graphite file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-white" />
+                            <div wire:loading wire:target="cobroComprobante" class="text-[11px] text-brand">Subiendo…</div>
+                            @error('cobroComprobante') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                            @if ($cobroComprobante)<p class="text-[11px] text-green-600">✓ Comprobante cargado</p>@endif
+                            <input type="text" wire:model="cobroBanco" placeholder="Banco (opcional)" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
+                        </div>
+                    @endif
+
+                    {{-- Cheque (si el principal es cheque) --}}
+                    @if ($cobroMedio === 'cheque')
+                        <div class="grid grid-cols-2 gap-2 rounded-xl border border-gray-100 bg-gray-50 p-3">
+                            <input type="text" wire:model="cobroChequeNumero" placeholder="N° de cheque" class="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
+                            <input type="text" wire:model="cobroBanco" placeholder="Banco" class="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
+                            @error('cobroChequeNumero') <p class="col-span-2 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    @endif
 
                     {{-- Total del pago --}}
                     <div class="flex items-center justify-between rounded-xl bg-anthracite px-4 py-2.5 text-white">
@@ -235,8 +296,8 @@
 
     {{-- ===== Modal "No cobré este día" (queda pendiente de aprobación del supervisor) ===== --}}
     @if ($modalNoVisita)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" wire:key="modal-novisita">
-            <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+        <div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center" wire:key="modal-novisita">
+            <div class="my-auto w-full max-w-md rounded-2xl bg-white shadow-2xl">
                 <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
                     <h3 class="flex items-center gap-2 text-base font-extrabold text-ink">
                         <span class="material-symbols-outlined text-amber-600">event_busy</span> No cobré este día

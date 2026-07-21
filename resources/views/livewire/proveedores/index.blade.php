@@ -47,6 +47,7 @@
             </div>
 
             @if ($tab === 'cuenta')
+                <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
                     <thead><tr class="text-[11px] uppercase tracking-wide text-muted"><th class="px-5 py-3 font-bold">Fecha</th><th class="px-5 py-3 font-bold">Concepto</th><th class="px-5 py-3 text-right font-bold">Compra (debe)</th><th class="px-5 py-3 text-right font-bold">Pago (haber)</th></tr></thead>
                     <tbody class="tabular">
@@ -61,8 +62,10 @@
                         <tr class="border-t-2 border-gray-200 bg-gray-50"><td colspan="3" class="px-5 py-3 text-right font-bold uppercase text-muted">Saldo (deuda)</td><td class="px-5 py-3 text-right text-base font-extrabold text-danger">${{ number_format($proveedor['deuda'], 2, ',', '.') }}</td></tr>
                     </tbody>
                 </table>
+                </div>
 
             @elseif ($tab === 'pedidos')
+                <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
                     <thead><tr class="text-[11px] uppercase tracking-wide text-muted"><th class="px-5 py-3 font-bold">Pedido</th><th class="px-5 py-3 font-bold">Fecha pedido</th><th class="px-5 py-3 font-bold">Estado</th><th class="px-5 py-3 font-bold">Llegada estimada</th><th class="px-5 py-3 font-bold">Llegada real</th></tr></thead>
                     <tbody class="tabular">
@@ -77,6 +80,7 @@
                         @endforeach
                     </tbody>
                 </table>
+                </div>
 
             @elseif ($tab === 'compras')
                 <div class="space-y-4 p-5">
@@ -86,6 +90,7 @@
                                 <span class="text-sm font-bold text-ink">Factura {{ $c['fac'] }} <span class="font-medium text-muted">· {{ $c['fecha'] }}</span></span>
                                 <span class="tabular text-sm font-extrabold text-ink">${{ number_format($c['monto'], 2, ',', '.') }}</span>
                             </div>
+                            <div class="overflow-x-auto">
                             <table class="w-full text-left text-sm">
                                 <thead><tr class="text-[11px] uppercase tracking-wide text-muted"><th class="px-4 py-2 font-bold">Artículo</th><th class="px-4 py-2 text-center font-bold">Cant.</th><th class="px-4 py-2 text-right font-bold">Costo unit.</th><th class="px-4 py-2 text-right font-bold">Subtotal</th></tr></thead>
                                 <tbody class="tabular">
@@ -99,11 +104,13 @@
                                     @endforeach
                                 </tbody>
                             </table>
+                            </div>
                         </div>
                     @endforeach
                 </div>
 
             @elseif ($tab === 'pagos')
+                <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
                     <thead><tr class="text-[11px] uppercase tracking-wide text-muted"><th class="px-5 py-3 font-bold">Fecha</th><th class="px-5 py-3 font-bold">Medio</th><th class="px-5 py-3 font-bold">Comprobante</th><th class="px-5 py-3 text-right font-bold">Monto</th></tr></thead>
                     <tbody class="tabular">
@@ -117,12 +124,13 @@
                         @endforeach
                     </tbody>
                 </table>
+                </div>
 
             @elseif ($tab === 'conceptos')
                 @puede('gestionar_proveedores')
                     <div class="p-5">
                         <p class="mb-3 text-sm text-muted">Conceptos (y % por defecto) que este proveedor aplica. Los de ámbito <b>costo</b> recargan el costo; los de <b>venta</b> (ej. Remarcar) el precio de venta. Es el default que se carga al dar de alta un producto de este proveedor; después se puede ajustar/quitar por producto.</p>
-                        <div class="overflow-hidden rounded-xl border border-gray-100">
+                        <div class="overflow-x-auto rounded-xl border border-gray-100">
                             <table class="w-full text-left text-sm">
                                 <thead><tr class="bg-gray-50 text-[11px] uppercase tracking-wide text-muted"><th class="px-4 py-2.5 font-bold">Aplica</th><th class="px-4 py-2.5 font-bold">Concepto</th><th class="px-4 py-2.5 font-bold">Ámbito</th><th class="px-4 py-2.5 text-right font-bold">% por defecto</th></tr></thead>
                                 <tbody>

@@ -290,7 +290,7 @@
                     @if ($verData['recibida']) Mercadería recibida @else Lo que debería llegar (aún no recibida) @endif
                 </p>
 
-                <div class="max-h-[60vh] overflow-y-auto rounded-xl border border-gray-100">
+                <div class="max-h-[60vh] overflow-auto rounded-xl border border-gray-100">
                     <table class="w-full text-sm">
                         <thead class="bg-gray-50 text-left text-[11px] uppercase text-muted">
                             <tr>

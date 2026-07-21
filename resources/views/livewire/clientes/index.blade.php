@@ -75,6 +75,7 @@
             </div>
 
             @if ($tab === 'cuenta')
+                <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
                     <thead><tr class="text-[11px] uppercase tracking-wide text-muted"><th class="px-5 py-3 font-bold">Fecha</th><th class="px-5 py-3 font-bold">Concepto</th><th class="px-5 py-3 text-right font-bold">Debe</th><th class="px-5 py-3 text-right font-bold">Haber</th></tr></thead>
                     <tbody class="tabular">
@@ -89,6 +90,7 @@
                         <tr class="border-t-2 border-gray-200 bg-gray-50"><td colspan="3" class="px-5 py-3 text-right font-bold uppercase text-muted">Saldo</td><td class="px-5 py-3 text-right text-base font-extrabold text-ink">${{ number_format($cliente['saldo'], 2, ',', '.') }}</td></tr>
                     </tbody>
                 </table>
+                </div>
 
             @elseif ($tab === 'cuotas')
                 @php
@@ -100,6 +102,7 @@
                     <div class="rounded-xl border border-red-100 bg-red-50 p-3"><p class="text-[11px] font-bold uppercase text-danger">Mora acumulada</p><p class="tabular text-lg font-extrabold text-danger">${{ number_format($cr['mora'], 2, ',', '.') }}</p></div>
                     <div class="rounded-xl border border-brand-soft bg-brand-soft/40 p-3"><p class="text-[11px] font-bold uppercase text-brand">Total a cobrar</p><p class="tabular text-lg font-extrabold text-brand">${{ number_format($cr['total'], 2, ',', '.') }}</p></div>
                 </div>
+                <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
                     <thead><tr class="text-[11px] uppercase tracking-wide text-muted"><th class="px-5 py-3 font-bold">Cuota</th><th class="px-5 py-3 font-bold">Venta</th><th class="px-5 py-3 font-bold">Vence</th><th class="px-5 py-3 text-right font-bold">Monto</th><th class="px-5 py-3 font-bold">Estado</th><th class="px-5 py-3 text-right font-bold">A cobrar</th><th class="px-5 py-3"></th></tr></thead>
                     <tbody class="tabular">
@@ -130,8 +133,10 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
 
             @elseif ($tab === 'compras')
+                <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
                     <thead><tr class="text-[11px] uppercase tracking-wide text-muted"><th class="px-5 py-3 font-bold">Fecha</th><th class="px-5 py-3 font-bold">Comprobante</th><th class="px-5 py-3 font-bold">Forma de pago</th><th class="px-5 py-3 text-right font-bold">Monto</th></tr></thead>
                     <tbody class="tabular">
@@ -145,8 +150,10 @@
                         @endforeach
                     </tbody>
                 </table>
+                </div>
 
             @elseif ($tab === 'pagos')
+                <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
                     <thead><tr class="text-[11px] uppercase tracking-wide text-muted"><th class="px-5 py-3 font-bold">Fecha</th><th class="px-5 py-3 font-bold">Concepto / Medio</th><th class="px-5 py-3 text-right font-bold">Monto</th></tr></thead>
                     <tbody class="tabular">
@@ -161,6 +168,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
 
             @elseif ($tab === 'cheques')
                 <div class="divide-y divide-gray-100">
