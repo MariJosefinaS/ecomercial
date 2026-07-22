@@ -147,6 +147,11 @@
                                 <div class="bg-white p-2"><p class="text-[10px] font-bold uppercase text-muted">A vencer</p><p class="tabular text-sm font-extrabold text-ink">${{ number_format($cr['a_vencer'], 2, ',', '.') }}</p></div>
                                 <div class="bg-white p-2"><p class="text-[10px] font-bold uppercase text-muted">Mora</p><p class="tabular text-sm font-extrabold {{ $cr['mora'] > 0 ? 'text-red-600' : 'text-ink' }}">${{ number_format($cr['mora'], 2, ',', '.') }}</p></div>
                             </div>
+                            @if ($cr['garante'])
+                                <div class="flex items-center gap-1.5 border-t border-gray-100 px-4 py-2 text-[11px] text-graphite">
+                                    <span class="material-symbols-outlined text-[15px] text-muted">handshake</span> <b>Garante:</b> {{ $cr['garante'] }}@if ($cr['garante_doc']) · {{ $cr['garante_doc'] }}@endif @if ($cr['garante_tel']) · {{ $cr['garante_tel'] }}@endif
+                                </div>
+                            @endif
                             @if (! empty($cr['movimientos']))
                                 <div class="overflow-x-auto">
                                     <table class="w-full text-left text-sm">

@@ -336,6 +336,16 @@
                                 <span class="{{ $cobrador ? 'font-semibold text-ink' : 'text-muted' }}">{{ $cobrador ?: 'Se completa al elegir la zona' }}</span>
                             </div>
                         </div>
+
+                        {{-- Garante del crédito (opcional) --}}
+                        <div class="sm:col-span-3">
+                            <p class="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted"><span class="material-symbols-outlined text-[15px]">handshake</span> Garante del crédito (opcional)</p>
+                            <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                <input type="text" wire:model="garanteNombre" placeholder="Nombre del garante" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
+                                <input type="text" wire:model="garanteDocumento" placeholder="DNI/CUIT del garante" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
+                                <input type="text" wire:model="garanteTelefono" placeholder="Teléfono del garante" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
+                            </div>
+                        </div>
                     @endif
                 </div>
 

@@ -59,6 +59,11 @@ class Nueva extends Component
 
     // ===== Plan / financiación =====
     public string $planCodigo = 'contado';
+
+    // Garante del crédito (opcional).
+    public string $garanteNombre = '';
+    public string $garanteDocumento = '';
+    public string $garanteTelefono = '';
     public ?int $plazo = null;
     public ?float $cuota = null;
     public ?float $anticipo = null;
@@ -561,6 +566,9 @@ class Nueva extends Component
                 'zona_cobranza' => $this->zonaCobranza ?: null,
                 'zona_id' => $esCredito ? $this->zonaId : null,
                 'cobrador' => $this->cobrador ?: null,
+                'garante_nombre' => $esCredito ? ($this->garanteNombre ?: null) : null,
+                'garante_documento' => $esCredito ? ($this->garanteDocumento ?: null) : null,
+                'garante_telefono' => $esCredito ? ($this->garanteTelefono ?: null) : null,
             ]);
 
             // El cliente "adopta" la zona de su venta a crédito si aún no tiene una (alta → zona).
