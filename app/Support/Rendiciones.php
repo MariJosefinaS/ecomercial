@@ -128,6 +128,78 @@ class Rendiciones
     }
 
     /**
+     * Cobros del día (por cobrador, opc.) vistos por COBRO/CLIENTE — para que el tesorero vea qué
+     * indicó cada cobrador que cobró (con el detalle de medios, incl. pago dividido, y comprobantes)
+     * y confirme la recepción. Incluye los totales esperados por medio.
+     */
+    public static function cobrosDelDia(?int $cobradorId, Carbon $fecha): array
+    {
+        $cobros = Cobro::with(['cliente:id,nombre', 'cobrador:id,name', 'cuota:id,numero', 'venta:id,numero', 'medios'])
+            ->when($cobradorId, fn ($q) => $q->where('cobrador_id', $cobradorId))
+            ->whereDate('fecha', $fecha)->orderByDesc('id')->get();
+
+        $filas = $cobros->map(function (Cobro $c) {
+            $medios = $c->medios->map(fn (CobroMedio $m) => [
+                'id' => $m->id,
+                'medio' => $m->medio,
+                'medio_label' => $m->medioLabel(),
+                'monto' => (float) $m->monto,
+                'banco' => $m->banco,
+                'cheque_numero' => $m->cheque_numero,
+                'comprobante' => $m->comprobanteUrl(),
+                'conciliado' => $m->estado_conciliacion === 'conciliado',
+                'no_rendido' => $m->estado_conciliacion === 'no_rendido',
+            ])->all();
+            $pendientes = collect($medios)->filter(fn ($m) => ! $m['conciliado'] && ! $m['no_rendido'])->count();
+
+            return [
+                'id' => $c->id,
+                'cliente' => $c->cliente?->nombre ?? '—',
+                'cobrador' => $c->cobrador?->name ?? '—',
+                'hora' => $c->fecha?->format('H:i'),
+                'credito' => $c->venta?->numero ?? '—',
+                'cuota' => $c->cuota?->numero,
+                'total' => (float) $c->monto,
+                'medios' => $medios,
+                'dividido' => count($medios) > 1,
+                'confirmado' => $pendientes === 0 && ! empty($medios),
+                'pendientes' => $pendientes,
+            ];
+        })->values()->all();
+
+        $partes = $cobros->flatMap->medios;
+        $porMedio = fn (string $medio) => round((float) $partes->where('medio', $medio)->sum(fn ($m) => (float) $m->monto), 2);
+
+        return [
+            'filas' => $filas,
+            'cant' => $cobros->count(),
+            'total' => round((float) $cobros->sum(fn (Cobro $c) => (float) $c->monto), 2),
+            'efectivo' => $porMedio('efectivo'),
+            'transferencia' => $porMedio('transferencia'),
+            'cheque' => $porMedio('cheque'),
+        ];
+    }
+
+    /** Confirma la RECEPCIÓN de un cobro completo: concilia todas sus partes pendientes (+ comisión). */
+    public static function confirmarCobro(int $cobroId, int $userId): int
+    {
+        $cobro = Cobro::with('medios')->find($cobroId);
+        if (! $cobro) {
+            return 0;
+        }
+        $n = 0;
+        foreach ($cobro->medios as $m) {
+            if ($m->estado_conciliacion === 'registrado') {
+                $m->update(['estado_conciliacion' => 'conciliado', 'conciliado_por' => $userId, 'conciliado_at' => now()]);
+                CuentaEmpleado::acreditarComisionDeMedio($m, $userId);
+                $n++;
+            }
+        }
+
+        return $n;
+    }
+
+    /**
      * Marca una parte de cobro como NO RENDIDA (robada/perdida por el cobrador). El cliente NO se afecta
      * (pagó, tiene recibo): se revierte el ingreso en caja y se le CARGA el importe al cobrador.
      * Solo sobre partes aún no conciliadas.

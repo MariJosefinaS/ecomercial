@@ -72,16 +72,26 @@ class Empleados extends Component
         ], attributes: ['pagoMonto' => 'importe', 'pagoComprobante' => 'comprobante']);
 
         $comp = $this->pagoComprobante ? $this->pagoComprobante->store('pagos_empleado', 'public') : null;
+        $emp = User::find($this->empleadoId);
 
-        $pago = CuentaEmpleado::registrarPago($this->empleadoId, (float) $this->pagoMonto, $this->pagoMedio, [
-            'comprobante' => $comp, 'banco' => $this->pagoBanco ?: null, 'nota' => $this->pagoNota ?: null,
-            'adelanto_id' => $this->adelantoPagandoId,
+        // Genera un PEDIDO DE PAGO. Si es un adelanto (ya aprobado por el super_admin) queda
+        // PRE-AUTORIZADO; si es un pago común, queda pendiente de autorización. El egreso + recibo
+        // se generan al PROCESARLO en Tesorería → Autorización de pagos.
+        \App\Support\Pagos::solicitar([
+            'tipo' => 'empleado', 'empleado_id' => $this->empleadoId, 'adelanto_id' => $this->adelantoPagandoId,
+            'beneficiario' => $emp?->name ?? 'Empleado',
+            'concepto' => $this->adelantoPagandoId ? 'Adelanto de sueldo' : 'Pago de comisiones',
+            'importe' => (float) $this->pagoMonto, 'medio' => $this->pagoMedio,
+            'comprobante' => $comp, 'banco' => $this->pagoBanco ?: null, 'comentario' => $this->pagoNota ?: null,
+            'preautorizado' => (bool) $this->adelantoPagandoId,
         ], auth()->id());
 
-        $this->ultimoPagoId = $pago->id;
+        $this->ultimoPagoId = null;
         $this->reset(['pagoMonto', 'pagoComprobante', 'pagoBanco', 'pagoNota', 'adelantoPagandoId']);
         $this->pagoMedio = 'efectivo';
-        $this->mensaje = 'Pago registrado (egreso en caja). Generá el recibo para la firma del empleado.';
+        $this->mensaje = $this->esSuper() || false
+            ? 'Pedido de pago generado. Procesalo en Tesorería → Autorización de pagos.'
+            : 'Pedido de pago enviado a autorización (Tesorería → Autorización de pagos).';
     }
 
     // ===== Adelantos =====

@@ -50,7 +50,11 @@
                 </div>
                 <div class="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
                     <span class="material-symbols-outlined text-[20px] text-muted">schedule</span>
-                    <div class="min-w-0"><p class="text-[11px] font-bold uppercase text-muted">Último acceso</p><p class="truncate text-sm font-semibold text-ink">{{ $u->ultimo_acceso ? \Illuminate\Support\Carbon::parse($u->ultimo_acceso)->format('d/m/Y H:i') : '—' }}</p></div>
+                    <div class="min-w-0">
+                        <p class="text-[11px] font-bold uppercase text-muted">Acceso anterior</p>
+                        <p class="truncate text-sm font-semibold text-ink">{{ $u->acceso_previo ? \Illuminate\Support\Carbon::parse($u->acceso_previo)->format('d/m/Y H:i') : 'Primer ingreso' }}</p>
+                        @if ($u->ultimo_acceso)<p class="truncate text-[11px] text-muted">Sesión actual: {{ \Illuminate\Support\Carbon::parse($u->ultimo_acceso)->format('d/m/Y H:i') }}</p>@endif
+                    </div>
                 </div>
             </div>
         </div>

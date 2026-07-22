@@ -152,6 +152,37 @@
                                     <span class="material-symbols-outlined text-[15px] text-muted">handshake</span> <b>Garante:</b> {{ $cr['garante'] }}@if ($cr['garante_doc']) · {{ $cr['garante_doc'] }}@endif @if ($cr['garante_tel']) · {{ $cr['garante_tel'] }}@endif
                                 </div>
                             @endif
+
+                            {{-- Estado de cuenta del crédito (métricas completas, como CRED) --}}
+                            <details class="group border-t border-gray-100">
+                                <summary class="flex cursor-pointer list-none items-center gap-1.5 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-brand">
+                                    <span class="material-symbols-outlined text-[16px] transition-transform group-open:rotate-90">chevron_right</span> Estado de cuenta del crédito
+                                </summary>
+                                <div class="grid grid-cols-2 gap-px bg-gray-100 text-center sm:grid-cols-4">
+                                    <div class="bg-white p-2"><p class="text-[10px] font-bold uppercase text-muted">Total cobrado</p><p class="tabular text-sm font-extrabold text-green-600">${{ number_format($cr['total_cobrado'], 2, ',', '.') }}</p></div>
+                                    <div class="bg-white p-2"><p class="text-[10px] font-bold uppercase text-muted">Debería haber pagado</p><p class="tabular text-sm font-extrabold text-ink">${{ number_format($cr['deberia_pagado'], 2, ',', '.') }}</p></div>
+                                    <div class="bg-white p-2"><p class="text-[10px] font-bold uppercase text-muted">Atraso total</p><p class="tabular text-sm font-extrabold {{ $cr['atraso_total'] > 0 ? 'text-red-600' : 'text-ink' }}">${{ number_format($cr['atraso_total'], 2, ',', '.') }}</p></div>
+                                    <div class="bg-white p-2"><p class="text-[10px] font-bold uppercase text-muted">% Avance</p><p class="tabular text-sm font-extrabold text-ink">{{ rtrim(rtrim(number_format($cr['avance'], 1, ',', '.'), '0'), ',') }}%</p></div>
+                                    <div class="bg-white p-2"><p class="text-[10px] font-bold uppercase text-muted">Cuotas atrasadas</p><p class="tabular text-sm font-extrabold {{ $cr['cuotas_atrasadas'] > 0 ? 'text-amber-700' : 'text-ink' }}">{{ $cr['cuotas_atrasadas'] }}@if ($cr['dias_atraso'] > 0) <span class="text-[10px] font-normal text-muted">({{ $cr['dias_atraso'] }}d)</span>@endif</p></div>
+                                    <div class="bg-white p-2"><p class="text-[10px] font-bold uppercase text-muted">Cobro promedio</p><p class="tabular text-sm font-extrabold text-ink">${{ number_format($cr['cobro_promedio'], 2, ',', '.') }}</p></div>
+                                    <div class="bg-white p-2"><p class="text-[10px] font-bold uppercase text-muted">Último cobro</p><p class="text-sm font-extrabold text-ink">{{ $cr['ultimo_cobro_fecha'] ?? '—' }}@if ($cr['ultimo_cobro_fecha']) <span class="block text-[10px] font-normal text-muted">${{ number_format($cr['ultimo_cobro_monto'], 0, ',', '.') }}</span>@endif</p></div>
+                                    <div class="bg-white p-2"><p class="text-[10px] font-bold uppercase text-muted">Fin de acuerdo</p><p class="text-sm font-extrabold text-ink">{{ $cr['fin_acuerdo'] ?? '—' }}</p></div>
+                                </div>
+                                <div class="flex flex-wrap gap-x-4 gap-y-1 px-4 py-2 text-[11px] text-muted">
+                                    <span>Solicitado: <b class="text-graphite">{{ $cr['fecha_solicitud'] ?? '—' }}</b></span>
+                                    <span>1ª cuota: <b class="text-graphite">{{ $cr['primera_cuota'] ?? '—' }}</b></span>
+                                    <span>Cuota: <b class="text-graphite">${{ number_format($cr['cuota'], 2, ',', '.') }}</b> ({{ ucfirst((string) $cr['modalidad']) }})</span>
+                                    <span>Anticipo: <b class="text-graphite">${{ number_format($cr['anticipo'], 2, ',', '.') }}</b></span>
+                                    <span>Vendedor: <b class="text-graphite">{{ $cr['vendedor'] }}</b></span>
+                                </div>
+                                @if (! empty($cr['productos']))
+                                    <div class="px-4 pb-2 text-[11px] text-graphite">
+                                        <b>Productos:</b>
+                                        @foreach ($cr['productos'] as $pr){{ $pr['nombre'] }} (x{{ $pr['cantidad'] }})@if (! $loop->last), @endif @endforeach
+                                    </div>
+                                @endif
+                            </details>
+
                             @if (! empty($cr['movimientos']))
                                 <div class="overflow-x-auto">
                                     <table class="w-full text-left text-sm">

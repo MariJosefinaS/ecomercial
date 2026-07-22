@@ -92,6 +92,14 @@ class Index extends Component
         $this->mensaje = 'Movimiento conciliado.';
     }
 
+    /** Confirma la recepción de un cobro completo (concilia todas sus partes pendientes). */
+    public function confirmarCobro(int $cobroId): void
+    {
+        $this->autorizar('supervisar_cobranza');
+        $n = \App\Support\Rendiciones::confirmarCobro($cobroId, auth()->id());
+        $this->mensaje = $n > 0 ? "Cobro confirmado ({$n} medio/s recibido/s)." : 'El cobro ya estaba confirmado.';
+    }
+
     // ===== Cobro NO rendido / robado =====
     public ?int $noRendMedioId = null;
     public string $noRendMotivo = '';
@@ -291,8 +299,14 @@ class Index extends Component
             ? \App\Support\Incobrables::detalle($this->filtroCobradorId, $this->filtroZonaId, $hoy)
             : collect();
 
+        // Cobros del día a confirmar (cobro-céntrico, con medios+comprobantes).
+        $cobrosDia = $this->tab === 'cobros'
+            ? \App\Support\Rendiciones::cobrosDelDia($this->filtroCobradorId, $this->rendFechaCarbon())
+            : null;
+
         return view('livewire.cobranza.index', [
             'rendicion' => $rendicion,
+            'cobrosDia' => $cobrosDia,
             'incobrables' => $incobrables,
             'kpis' => [
                 'atrasado' => $montoAtrasado,

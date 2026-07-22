@@ -248,21 +248,16 @@ class Index extends Component
             'pagoMedio' => 'required|in:transferencia,efectivo,cheque',
         ], messages: ['pagoMonto.max' => "No podés pagar más que el saldo (\${$saldo})."], attributes: ['pagoMonto' => 'importe']);
 
-        $monto = round((float) $this->pagoMonto, 2);
-        $ob->monto_pagado = round((float) $ob->monto_pagado + $monto, 2);
-        $ob->fecha_pago = now();
-        $ob->estado = $ob->monto_pagado >= (float) $ob->monto - 0.005 ? 'pagado' : 'parcial';
-        $ob->save();
-
-        $medioLbl = ['transferencia' => 'Transferencia', 'efectivo' => 'Efectivo', 'cheque' => 'Cheque'][$this->pagoMedio];
+        // Genera un PEDIDO DE PAGO (queda pendiente de autorización). El egreso ocurre al procesarlo.
         $fac = $ob->compra?->factura_numero ?: ($ob->compra?->numero ?? '');
-        MovimientoCaja::create([
-            'tipo' => 'egreso', 'medio' => $medioLbl,
-            'concepto' => 'Pago a proveedor ' . ($ob->proveedor?->nombre ?? '') . ($fac ? " · Factura {$fac}" : ''),
-            'monto' => $monto, 'fecha' => now(), 'referencia' => 'PAGOPROV',
-        ]);
+        \App\Support\Pagos::solicitar([
+            'tipo' => 'proveedor', 'proveedor_id' => $ob->proveedor_id, 'obligacion_id' => $ob->id,
+            'beneficiario' => $ob->proveedor?->nombre ?? 'Proveedor',
+            'concepto' => 'Pago factura ' . $fac,
+            'importe' => (float) $this->pagoMonto, 'medio' => $this->pagoMedio,
+        ], auth()->id());
 
-        $this->mensaje = 'Pago registrado (egreso en caja) por $' . number_format($monto, 2, ',', '.') . '.';
+        $this->mensaje = 'Pedido de pago enviado a autorización por $' . number_format((float) $this->pagoMonto, 2, ',', '.') . ' (Tesorería → Autorización de pagos).';
         $this->cerrarPagoProveedor();
     }
 

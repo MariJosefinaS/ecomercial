@@ -59,6 +59,7 @@
             'atrasados' => ['Atrasados', 'running_with_errors'],
             'hoy'       => ['Vencen hoy', 'today'],
             'agenda'    => ['Agenda semanal', 'calendar_month'],
+            'cobros'    => ['Cobros del día', 'receipt_long'],
             'rendicion' => ['Rendición', 'account_balance_wallet'],
             'incobrables' => ['Incobrables', 'gpp_bad'],
         ];
@@ -294,6 +295,65 @@
                 @endforeach
             </div>
         </x-panel>
+    @endif
+
+    {{-- ================= COBROS DEL DÍA (a confirmar) ================= --}}
+    @if ($tab === 'cobros' && $cobrosDia)
+        <div class="space-y-5">
+            <div class="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <label class="mb-1 block text-xs font-bold uppercase text-muted">Fecha</label>
+                    <input type="date" wire:model.live="rendFecha" class="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
+                </div>
+                <p class="text-xs text-muted">Lo que cada cobrador indicó que cobró. Confirmá la recepción tras ver el comprobante. Filtrá por cobrador arriba.</p>
+            </div>
+
+            {{-- Totales esperados por medio --}}
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-soft"><p class="text-[11px] font-bold uppercase text-muted">Total del día</p><p class="tabular mt-1 text-lg font-extrabold text-ink">{{ $money2($cobrosDia['total']) }}</p><p class="text-[11px] text-muted">{{ $cobrosDia['cant'] }} cobro(s)</p></div>
+                <div class="rounded-2xl border border-green-100 bg-green-50/50 p-4 shadow-soft"><p class="text-[11px] font-bold uppercase text-muted">Efectivo</p><p class="tabular mt-1 text-lg font-extrabold text-green-700">{{ $money2($cobrosDia['efectivo']) }}</p></div>
+                <div class="rounded-2xl border border-sky-100 bg-sky-50/50 p-4 shadow-soft"><p class="text-[11px] font-bold uppercase text-muted">Transferencias</p><p class="tabular mt-1 text-lg font-extrabold text-sky-700">{{ $money2($cobrosDia['transferencia']) }}</p></div>
+                <div class="rounded-2xl border border-amber-100 bg-amber-50/50 p-4 shadow-soft"><p class="text-[11px] font-bold uppercase text-muted">Cheques</p><p class="tabular mt-1 text-lg font-extrabold text-amber-700">{{ $money2($cobrosDia['cheque']) }}</p></div>
+            </div>
+
+            <x-panel title="Cobros indicados por los cobradores">
+                <div class="divide-y divide-gray-100">
+                    @forelse ($cobrosDia['filas'] as $c)
+                        <div class="p-4">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-ink">{{ $c['cliente'] }} <span class="font-normal text-muted">· {{ $money2($c['total']) }}</span> @if ($c['dividido'])<span class="ml-1 rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand">Pago dividido</span>@endif</p>
+                                    <p class="text-[11px] text-muted">Cobró {{ $c['cobrador'] }} · {{ $c['hora'] }} · Venta {{ $c['credito'] }}@if ($c['cuota']) · cuota #{{ $c['cuota'] }}@endif</p>
+                                </div>
+                                <div class="shrink-0">
+                                    @if ($c['confirmado'])
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-[11px] font-bold text-green-700"><span class="material-symbols-outlined text-[15px]">check_circle</span> Recepción confirmada</span>
+                                    @else
+                                        <button wire:click="confirmarCobro({{ $c['id'] }})" wire:confirm="¿Confirmar que recibiste este cobro ({{ $money2($c['total']) }})?" class="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">verified</span> Confirmar recepción</button>
+                                    @endif
+                                </div>
+                            </div>
+                            {{-- Detalle de medios (incl. el dividido) + comprobantes --}}
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                @foreach ($c['medios'] as $m)
+                                    @php $mc = $m['medio'] === 'efectivo' ? 'bg-green-50 text-green-700 border-green-200' : ($m['medio'] === 'transferencia' ? 'bg-sky-50 text-sky-700 border-sky-200' : 'bg-amber-50 text-amber-700 border-amber-200'); @endphp
+                                    <span class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold {{ $mc }}">
+                                        {{ $m['medio_label'] }} {{ $money2($m['monto']) }}
+                                        @if ($m['banco'])<span class="font-normal">· {{ $m['banco'] }}</span>@endif
+                                        @if ($m['cheque_numero'])<span class="font-normal">· N° {{ $m['cheque_numero'] }}</span>@endif
+                                        @if ($m['comprobante'])<a href="{{ $m['comprobante'] }}" target="_blank" class="inline-flex items-center gap-0.5 underline"><span class="material-symbols-outlined text-[13px]">image</span> comprobante</a>@endif
+                                        @if ($m['conciliado'])<span class="material-symbols-outlined text-[14px] text-green-600" title="Confirmado">check</span>
+                                        @elseif ($m['no_rendido'])<span class="material-symbols-outlined text-[14px] text-red-600" title="No rendido">report</span>@endif
+                                    </span>
+                                @endforeach
+                            </div>
+                        </div>
+                    @empty
+                        <p class="px-4 py-10 text-center text-sm text-muted"><span class="material-symbols-outlined mb-1 block text-3xl">receipt_long</span> No hay cobros en esta fecha@if ($filtroCobradorId) para este cobrador@endif.</p>
+                    @endforelse
+                </div>
+            </x-panel>
+        </div>
     @endif
 
     {{-- ================= RENDICIÓN (Tesorería) ================= --}}

@@ -22,11 +22,16 @@ class AppServiceProvider extends ServiceProvider
             return Permisos::puede(auth()->user()?->rol, $permiso);
         });
 
-        // Registrar el ÚLTIMO INGRESO en cualquier autenticación (form login, "recordarme", etc.).
+        // Registrar el ingreso en cualquier autenticación (form login, "recordarme", etc.).
+        // Antes de pisar `ultimo_acceso` con "ahora", guardamos el vigente en `acceso_previo`
+        // para que el perfil pueda mostrar el ACCESO ANTERIOR (no el momento del login actual).
         Event::listen(Login::class, function (Login $event) {
             $u = $event->user;
             if ($u && method_exists($u, 'forceFill')) {
-                $u->forceFill(['ultimo_acceso' => now()])->saveQuietly();
+                $u->forceFill([
+                    'acceso_previo' => $u->ultimo_acceso,
+                    'ultimo_acceso' => now(),
+                ])->saveQuietly();
             }
         });
     }

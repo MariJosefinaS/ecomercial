@@ -68,6 +68,7 @@ class Permisos
                 'cargar_cheques' => 'Cargar / gestionar cheques',
                 'registrar_pago' => 'Registrar pagos (ingresos/egresos)',
                 'pagar_empleados' => 'Pagar a empleados / cuenta del cobrador',
+                'autorizar_pagos' => 'Autorizar / rechazar pedidos de pago',
             ],
             'Reportes' => [
                 'ver_reportes' => 'Ver reportes',
@@ -112,6 +113,7 @@ class Permisos
             'cobranza.planilla' => 'ver_cobranza', // planilla del cobrador
             'tesoreria' => 'ver_tesoreria',
             'tesoreria.empleados' => 'pagar_empleados',
+            'tesoreria.autorizaciones' => 'ver_tesoreria',
             'devoluciones' => 'ver_devoluciones',
             'reportes' => 'ver_reportes',
             'usuarios' => 'ver_usuarios',

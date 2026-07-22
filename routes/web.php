@@ -14,6 +14,7 @@ use App\Livewire\Traspasos\Index as TraspasosIndex;
 use App\Livewire\Reportes\Index as ReportesIndex;
 use App\Livewire\Stock\Index as StockIndex;
 use App\Livewire\Stock\Reposicion as StockReposicion;
+use App\Livewire\Tesoreria\Autorizaciones as TesoreriaAutorizaciones;
 use App\Livewire\Tesoreria\Empleados as TesoreriaEmpleados;
 use App\Livewire\Tesoreria\Index as TesoreriaIndex;
 use App\Livewire\Usuarios\Index as UsuariosIndex;
@@ -100,6 +101,7 @@ Route::middleware(['auth', 'permiso'])->group(function () {
     })->name('cobranza.recibo');
     Route::get('/tesoreria', TesoreriaIndex::class)->name('tesoreria');
     Route::get('/tesoreria/empleados', TesoreriaEmpleados::class)->name('tesoreria.empleados'); // Pago a empleados / cuenta del cobrador
+    Route::get('/tesoreria/autorizaciones', TesoreriaAutorizaciones::class)->name('tesoreria.autorizaciones'); // Tablero de autorización de pagos
     // Recibo de un pago a empleado (PDF firmable). Gated pagar_empleados.
     Route::get('/tesoreria/pago/{pago}/recibo', function (\App\Models\PagoEmpleado $pago) {
         abort_unless(\App\Support\Permisos::puede(Auth::user()?->rol, 'pagar_empleados'), 403);
