@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Cobro;
 use App\Models\CobroMedio;
 use App\Models\MovimientoCaja;
 use App\Models\Rendicion;
@@ -41,6 +42,8 @@ class Rendiciones
             'cheque_numero' => $m->cheque_numero,
             'comprobante' => $m->comprobanteUrl(),
             'conciliado' => $m->estado_conciliacion === 'conciliado',
+            'no_rendido' => $m->estado_conciliacion === 'no_rendido',
+            'motivo' => $m->no_rendido_motivo,
             'hora' => $m->cobro?->fecha?->format('H:i'),
         ];
     }
@@ -55,8 +58,10 @@ class Rendiciones
         $transfer = $partes->where('medio', 'transferencia');
         $cheque = $partes->where('medio', 'cheque');
 
-        $sumPend = fn ($col) => round($col->where('estado_conciliacion', '!=', 'conciliado')->sum(fn ($m) => (float) $m->monto), 2);
+        // "Pendiente" = solo 'registrado' (no_rendido/conciliado ya no cuentan para rendir).
+        $sumPend = fn ($col) => round($col->where('estado_conciliacion', 'registrado')->sum(fn ($m) => (float) $m->monto), 2);
         $sumCon = fn ($col) => round($col->where('estado_conciliacion', 'conciliado')->sum(fn ($m) => (float) $m->monto), 2);
+        $sumNoRend = fn ($col) => round($col->where('estado_conciliacion', 'no_rendido')->sum(fn ($m) => (float) $m->monto), 2);
 
         // Rendiciones de efectivo ya registradas ese día (para el cobrador filtrado).
         $rendiciones = Rendicion::with('registrador:id,name')
@@ -68,6 +73,7 @@ class Rendiciones
                 'filas' => $porMedio('efectivo'),
                 'esperado_pendiente' => $sumPend($efectivo),   // aún no rendido
                 'ya_rendido' => $sumCon($efectivo),
+                'no_rendido' => $sumNoRend($efectivo),
                 'total' => round((float) $efectivo->sum(fn ($m) => (float) $m->monto), 2),
                 'cant' => $efectivo->count(),
             ],
@@ -93,7 +99,7 @@ class Rendiciones
     public static function conciliarParte(int $cobroMedioId, int $userId): bool
     {
         $m = CobroMedio::find($cobroMedioId);
-        if (! $m || $m->estado_conciliacion === 'conciliado') {
+        if (! $m || in_array($m->estado_conciliacion, ['conciliado', 'no_rendido'], true)) {
             return false;
         }
         $m->update(['estado_conciliacion' => 'conciliado', 'conciliado_por' => $userId, 'conciliado_at' => now()]);
@@ -107,7 +113,7 @@ class Rendiciones
     public static function conciliarMedio(string $medio, ?int $cobradorId, Carbon $fecha, int $userId): int
     {
         $partes = self::partes($cobradorId, $fecha)
-            ->where('medio', $medio)->where('estado_conciliacion', '!=', 'conciliado');
+            ->where('medio', $medio)->where('estado_conciliacion', 'registrado');
         if ($partes->isEmpty()) {
             return 0;
         }
@@ -122,6 +128,44 @@ class Rendiciones
     }
 
     /**
+     * Marca una parte de cobro como NO RENDIDA (robada/perdida por el cobrador). El cliente NO se afecta
+     * (pagó, tiene recibo): se revierte el ingreso en caja y se le CARGA el importe al cobrador.
+     * Solo sobre partes aún no conciliadas.
+     */
+    public static function marcarNoRendido(int $cobroMedioId, string $motivo, int $userId): bool
+    {
+        $m = CobroMedio::with('cobro.cobrador', 'cobro.venta:id,numero')->find($cobroMedioId);
+        if (! $m || $m->estado_conciliacion === 'conciliado' || $m->estado_conciliacion === 'no_rendido') {
+            return false;
+        }
+        $cobro = $m->cobro;
+        $cobradorId = $cobro?->cobrador_id;
+        $ref = $cobro?->venta?->numero ?? ($cobro ? 'Cobro #' . $cobro->id : null);
+        $monto = (float) $m->monto;
+
+        DB::transaction(function () use ($m, $cobradorId, $ref, $monto, $motivo, $userId) {
+            $m->update([
+                'estado_conciliacion' => 'no_rendido', 'no_rendido_motivo' => $motivo ?: null,
+                'conciliado_por' => $userId, 'conciliado_at' => now(),
+            ]);
+
+            // Revertir el ingreso que se había registrado al cobrar (ese efectivo no está).
+            MovimientoCaja::create([
+                'tipo' => 'egreso', 'medio' => Cobro::MEDIOS[$m->medio] ?? ucfirst($m->medio),
+                'concepto' => 'Cobro no rendido' . ($ref ? " ({$ref})" : '') . ' — ' . ($motivo ?: 'sin motivo'),
+                'monto' => $monto, 'fecha' => now(), 'referencia' => 'NORENDIDO',
+            ]);
+
+            // Cargar el importe al cobrador (va contra él; el cliente no absorbe nada).
+            if ($cobradorId) {
+                CuentaEmpleado::cargar($cobradorId, $monto, 'Cargo por cobro no rendido' . ($ref ? " ({$ref})" : ''), 'norendido_medio:' . $m->id, $userId);
+            }
+        });
+
+        return true;
+    }
+
+    /**
      * Registra la rendición de EFECTIVO de un cobrador: marca sus partes efectivo pendientes como
      * conciliadas, crea el registro de Rendicion y ajusta caja por la diferencia (faltante/sobrante).
      *
@@ -130,7 +174,7 @@ class Rendiciones
     public static function rendirEfectivo(int $cobradorId, Carbon $fecha, float $recibido, ?string $nota, int $userId): array
     {
         $partes = self::partes($cobradorId, $fecha)
-            ->where('medio', 'efectivo')->where('estado_conciliacion', '!=', 'conciliado');
+            ->where('medio', 'efectivo')->where('estado_conciliacion', 'registrado');
 
         if ($partes->isEmpty()) {
             return ['ok' => false, 'esperado' => 0, 'recibido' => $recibido, 'diferencia' => 0, 'cant' => 0,

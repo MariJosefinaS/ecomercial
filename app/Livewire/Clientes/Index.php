@@ -91,6 +91,36 @@ class Index extends Component
             'total' => round($pend->sum(fn ($q) => $q->totalAcobrar($hoy)), 2),
         ];
 
+        // Semáforo del cliente (en vivo) + detalle por crédito.
+        $base['semaforo'] = \App\Support\Semaforo::deCliente($c->id, $hoy);
+
+        // ===== Cuenta corriente POR CRÉDITO (doble vista: además del saldo único fiscal) =====
+        $base['numero_cuenta'] = $c->numero_cuenta;
+        $base['creditos'] = Venta::where('cliente_id', $c->id)->where('credito', true)->orderByDesc('id')->get()
+            ->map(function (Venta $v) use ($c, $hoy) {
+                $cuotasV = Cuota::where('venta_id', $v->id)->get();
+                $pend = $cuotasV->where('estado', 'pendiente');
+                $total = $cuotasV->count();
+                $pagadas = $cuotasV->where('estado', 'cobrada')->count();
+                $movs = MovimientoCliente::where('cliente_id', $c->id)->where('referencia', $v->numero)
+                    ->orderBy('fecha')->orderBy('id')->get();
+
+                return [
+                    'barra' => ($c->numero_cuenta ?? '—') . ($v->credito_barra ? '/' . $v->credito_barra : ''),
+                    'numero' => $v->numero,
+                    'plan' => $v->plan_nombre ?? ucfirst((string) $v->modalidad),
+                    'fecha' => $v->fecha?->format('d/m/Y'),
+                    'estado' => $v->estado,
+                    'saldo' => round($pend->sum(fn (Cuota $q) => $q->totalAcobrar($hoy)), 2),
+                    'vencido' => round($pend->filter(fn (Cuota $q) => $q->estaVencida($hoy))->sum(fn (Cuota $q) => $q->saldo()), 2),
+                    'a_vencer' => round($pend->filter(fn (Cuota $q) => ! $q->estaVencida($hoy))->sum(fn (Cuota $q) => $q->saldo()), 2),
+                    'mora' => round($pend->sum(fn (Cuota $q) => $q->mora($hoy)), 2),
+                    'pagadas' => $pagadas, 'total_cuotas' => $total,
+                    'avance' => $total > 0 ? round($pagadas / $total * 100, 1) : 0.0,
+                    'movimientos' => $movs->map(fn ($m) => ['fecha' => $m->fecha?->format('d/m/Y'), 'concepto' => $m->concepto, 'tipo' => $m->tipo, 'monto' => (float) $m->monto])->all(),
+                ];
+            })->all();
+
         $base['compras'] = Venta::where('cliente_id', $c->id)->whereIn('estado', ['pendiente', 'aprobada'])->orderByDesc('id')->get()
             ->map(fn ($v) => ['fecha' => $v->fecha?->format('d/m/Y'), 'comp' => $v->numero, 'pago' => $v->medio_pago, 'monto' => (float) $v->total])->all();
 
@@ -230,6 +260,10 @@ class Index extends Component
             ->orderBy('nombre')
             ->get()
             ->map(fn (Cliente $c) => $this->aArray($c));
+
+        // Semáforo (en vivo) de todos los clientes de la lista, en una tanda eficiente.
+        $sem = \App\Support\Semaforo::paraClientes($filas->pluck('id')->all(), Carbon::today());
+        $filas = $filas->map(fn ($f) => $f + ['semaforo' => $sem[$f['id']] ?? ['estado' => 'gris', 'vencidas' => 0, 'avance' => 0.0]]);
 
         $debe = (float) MovimientoCliente::where('tipo', 'debe')->sum('monto');
         $haber = (float) MovimientoCliente::where('tipo', 'haber')->sum('monto');

@@ -31,8 +31,8 @@ class Login extends Component
 
         session()->regenerate();
 
-        // Registrar el último ingreso (se muestra en el ABM de Usuarios).
-        Auth::user()?->forceFill(['ultimo_acceso' => now()])->save();
+        // El último ingreso lo registra el listener del evento Login (AppServiceProvider),
+        // así cubre también la autenticación por "recordarme".
 
         // Cada rol entra a la primera sección que puede ver (vendedor → Nota de pedido).
         return redirect()->intended(route(\App\Support\Permisos::inicio(Auth::user()?->rol)));

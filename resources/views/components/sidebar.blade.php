@@ -45,6 +45,7 @@
         ['label' => 'Tesorería', 'icon' => 'account_balance', 'route' => 'tesoreria', 'perm' => 'ver_tesoreria', 'default' => 'resumen', 'children' => [
             ['sub' => 'resumen',    'label' => 'Resumen',             'icon' => 'dashboard'],
             ['route' => 'cobranza', 'label' => 'Cobranza (supervisión)', 'icon' => 'request_quote', 'perm' => 'supervisar_cobranza'],
+            ['route' => 'tesoreria.empleados', 'label' => 'Pago a empleados', 'icon' => 'badge', 'perm' => 'pagar_empleados'],
             ['sub' => 'caja',       'label' => 'Movimientos de caja', 'icon' => 'payments'],
             ['sub' => 'depositar',  'label' => 'Cheques a depositar', 'icon' => 'account_balance_wallet'],
             ['sub' => 'debitar',    'label' => 'Cheques a debitar',   'icon' => 'credit_card'],

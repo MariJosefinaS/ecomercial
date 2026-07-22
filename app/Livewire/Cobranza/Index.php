@@ -92,6 +92,38 @@ class Index extends Component
         $this->mensaje = 'Movimiento conciliado.';
     }
 
+    // ===== Cobro NO rendido / robado =====
+    public ?int $noRendMedioId = null;
+    public string $noRendMotivo = '';
+
+    public function pedirNoRendido(int $cobroMedioId): void
+    {
+        $this->autorizar('supervisar_cobranza');
+        $this->noRendMedioId = $cobroMedioId;
+        $this->noRendMotivo = '';
+        $this->resetValidation();
+    }
+
+    public function cerrarNoRendido(): void
+    {
+        $this->noRendMedioId = null;
+        $this->noRendMotivo = '';
+    }
+
+    public function marcarNoRendido(): void
+    {
+        $this->autorizar('supervisar_cobranza');
+        if (! $this->noRendMedioId) {
+            return;
+        }
+        $this->validate(['noRendMotivo' => 'required|min:3'], attributes: ['noRendMotivo' => 'motivo']);
+        $ok = \App\Support\Rendiciones::marcarNoRendido($this->noRendMedioId, $this->noRendMotivo, auth()->id());
+        $this->mensaje = $ok
+            ? 'Cobro marcado como NO RENDIDO: se revirtió el ingreso en caja y se le cargó al cobrador. El cliente no se afecta.'
+            : 'No se pudo marcar (ya estaba conciliado o no rendido).';
+        $this->cerrarNoRendido();
+    }
+
     /** Concilia TODAS las partes pendientes de un medio para el día/cobrador. */
     public function conciliarMedio(string $medio): void
     {
@@ -254,8 +286,14 @@ class Index extends Component
             ? \App\Support\Rendiciones::resumen($this->filtroCobradorId, $this->rendFechaCarbon())
             : null;
 
+        // Créditos incobrables (solo si es la pestaña activa).
+        $incobrables = $this->tab === 'incobrables'
+            ? \App\Support\Incobrables::detalle($this->filtroCobradorId, $this->filtroZonaId, $hoy)
+            : collect();
+
         return view('livewire.cobranza.index', [
             'rendicion' => $rendicion,
+            'incobrables' => $incobrables,
             'kpis' => [
                 'atrasado' => $montoAtrasado,
                 'clientes_atrasados' => $clientesAtrasados,

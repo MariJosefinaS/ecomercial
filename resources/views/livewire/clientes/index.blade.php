@@ -28,8 +28,16 @@
                 <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft text-xl font-extrabold text-brand">{{ mb_strtoupper(mb_substr($cliente['nombre'], 0, 2)) }}</span>
                 <div>
                     <h1 class="text-xl font-extrabold text-ink">{{ $cliente['nombre'] }}</h1>
-                    <p class="text-xs text-muted">{{ $cliente['doc'] }} · {{ $cliente['tel'] }}</p>
-                    <span class="mt-1 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide {{ $riesgoBadge[$cliente['riesgo']] }}">Riesgo {{ $cliente['riesgo'] }}</span>
+                    <p class="text-xs text-muted">
+                        @if ($cliente['numero_cuenta'])<span class="font-bold text-graphite">Cuenta N° {{ $cliente['numero_cuenta'] }}</span> · @endif{{ $cliente['doc'] }} · {{ $cliente['tel'] }}
+                    </p>
+                    @php [$semDot, $semTxt, $semBg] = \App\Support\Semaforo::clases($cliente['semaforo']['estado']); @endphp
+                    <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                        <span class="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide {{ $riesgoBadge[$cliente['riesgo']] }}">Riesgo {{ $cliente['riesgo'] }}</span>
+                        <span class="inline-flex items-center gap-1 rounded-full {{ $semBg }} px-2.5 py-0.5 text-[11px] font-bold {{ $semTxt }}">
+                            <span class="h-2 w-2 rounded-full {{ $semDot }}"></span> {{ \App\Support\Semaforo::label($cliente['semaforo']['estado']) }}@if ($cliente['semaforo']['vencidas'] > 0) · {{ $cliente['semaforo']['vencidas'] }} venc.@endif
+                        </span>
+                    </div>
                 </div>
             </div>
             <div class="flex gap-6">
@@ -66,10 +74,35 @@
         </x-panel>
         @endpuede
 
+        {{-- Semáforo por crédito (en vivo) --}}
+        @if (! empty($cliente['semaforo']['creditos_detalle']))
+            <x-panel title="Semáforo de créditos">
+                <p class="px-5 pt-4 text-xs text-muted">Estado en vivo de cada crédito activo: 🟢 al día · 🟡 en atraso · 🔴 no paga (llegó al umbral de incobrable de su plan). La barra es el <b>% de avance</b> (cuotas pagadas).</p>
+                <div class="divide-y divide-gray-100 p-2">
+                    @foreach ($cliente['semaforo']['creditos_detalle'] as $cr)
+                        @php [$dDot, $dTxt, $dBg] = \App\Support\Semaforo::clases($cr['estado']); @endphp
+                        <div class="flex flex-wrap items-center gap-3 px-3 py-3">
+                            <span class="h-3 w-3 shrink-0 rounded-full {{ $dDot }}"></span>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm font-bold text-ink">{{ $cr['venta'] }} <span class="font-normal text-muted">· {{ $cr['plan'] }}</span></p>
+                                <div class="mt-1 flex items-center gap-2">
+                                    <div class="h-1.5 w-32 overflow-hidden rounded-full bg-gray-100"><div class="h-full rounded-full {{ $dDot }}" style="width: {{ min(100, $cr['avance']) }}%"></div></div>
+                                    <span class="text-[11px] text-muted">{{ $cr['pagadas'] }}/{{ $cr['total'] }} cuotas · {{ rtrim(rtrim(number_format($cr['avance'], 1, ',', '.'), '0'), ',') }}%</span>
+                                </div>
+                            </div>
+                            <span class="shrink-0 rounded-full {{ $dBg }} px-2.5 py-0.5 text-[11px] font-bold {{ $dTxt }}">
+                                {{ \App\Support\Semaforo::label($cr['estado']) }}@if ($cr['vencidas'] > 0) · {{ $cr['vencidas'] }}@if ($cr['umbral'] > 0)/{{ $cr['umbral'] }}@endif venc.@endif
+                            </span>
+                        </div>
+                    @endforeach
+                </div>
+            </x-panel>
+        @endif
+
         {{-- Tabs de la ficha --}}
         <x-panel>
             <div class="flex items-center gap-1 border-b border-gray-100 px-3">
-                @foreach (['cuenta' => 'Cuenta corriente', 'cuotas' => 'Cuotas', 'compras' => 'Compras', 'pagos' => 'Pagos', 'cheques' => 'Cheques', 'devoluciones' => 'Devoluciones'] as $t => $lbl)
+                @foreach (['cuenta' => 'Cuenta corriente', 'creditos' => 'Créditos', 'cuotas' => 'Cuotas', 'compras' => 'Compras', 'pagos' => 'Pagos', 'cheques' => 'Cheques', 'devoluciones' => 'Devoluciones'] as $t => $lbl)
                     <button wire:click="setTab('{{ $t }}')" class="-mb-px border-b-2 px-4 py-3 text-sm font-bold transition {{ $tab === $t ? 'border-brand text-brand' : 'border-transparent text-graphite hover:text-brand' }}">{{ $lbl }}</button>
                 @endforeach
             </div>
@@ -90,6 +123,51 @@
                         <tr class="border-t-2 border-gray-200 bg-gray-50"><td colspan="3" class="px-5 py-3 text-right font-bold uppercase text-muted">Saldo</td><td class="px-5 py-3 text-right text-base font-extrabold text-ink">${{ number_format($cliente['saldo'], 2, ',', '.') }}</td></tr>
                     </tbody>
                 </table>
+                </div>
+
+            @elseif ($tab === 'creditos')
+                {{-- Cuenta corriente POR crédito (además del saldo único de la pestaña Cuenta corriente) --}}
+                <p class="px-5 pt-4 text-xs text-muted">Cada <b>crédito</b> de la cuenta con su propio saldo (para saber qué producto/crédito paga). El <b>saldo único fiscal</b> está en la pestaña «Cuenta corriente».</p>
+                <div class="space-y-4 p-5">
+                    @forelse ($cliente['creditos'] as $cr)
+                        @php $estBadge = ['aprobada'=>'bg-green-100 text-green-700','pendiente'=>'bg-amber-100 text-amber-700','rechazada'=>'bg-red-100 text-red-700','entregada'=>'bg-sky-100 text-sky-700'][$cr['estado']] ?? 'bg-gray-100 text-graphite'; @endphp
+                        <div class="overflow-hidden rounded-xl border border-gray-100">
+                            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 bg-gray-50 px-4 py-3">
+                                <div>
+                                    <p class="text-sm font-extrabold text-ink">Crédito {{ $cr['barra'] }} <span class="ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase {{ $estBadge }}">{{ $cr['estado'] }}</span></p>
+                                    <p class="text-[11px] text-muted">{{ $cr['numero'] }} · {{ $cr['plan'] }} · {{ $cr['fecha'] }} · {{ $cr['pagadas'] }}/{{ $cr['total_cuotas'] }} cuotas ({{ rtrim(rtrim(number_format($cr['avance'],1,',','.'),'0'),',') }}%)</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] font-bold uppercase text-muted">Saldo del crédito</p>
+                                    <p class="tabular text-lg font-extrabold {{ $cr['saldo'] > 0 ? 'text-ink' : 'text-green-600' }}">${{ number_format($cr['saldo'], 2, ',', '.') }}</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-3 gap-px bg-gray-100 text-center">
+                                <div class="bg-white p-2"><p class="text-[10px] font-bold uppercase text-muted">Vencido</p><p class="tabular text-sm font-extrabold {{ $cr['vencido'] > 0 ? 'text-amber-700' : 'text-ink' }}">${{ number_format($cr['vencido'], 2, ',', '.') }}</p></div>
+                                <div class="bg-white p-2"><p class="text-[10px] font-bold uppercase text-muted">A vencer</p><p class="tabular text-sm font-extrabold text-ink">${{ number_format($cr['a_vencer'], 2, ',', '.') }}</p></div>
+                                <div class="bg-white p-2"><p class="text-[10px] font-bold uppercase text-muted">Mora</p><p class="tabular text-sm font-extrabold {{ $cr['mora'] > 0 ? 'text-red-600' : 'text-ink' }}">${{ number_format($cr['mora'], 2, ',', '.') }}</p></div>
+                            </div>
+                            @if (! empty($cr['movimientos']))
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-sm">
+                                        <thead><tr class="text-[11px] uppercase tracking-wide text-muted"><th class="px-4 py-2 font-bold">Fecha</th><th class="px-4 py-2 font-bold">Concepto</th><th class="px-4 py-2 text-right font-bold">Debe</th><th class="px-4 py-2 text-right font-bold">Haber</th></tr></thead>
+                                        <tbody class="tabular">
+                                            @foreach ($cr['movimientos'] as $m)
+                                                <tr class="border-t border-gray-100">
+                                                    <td class="px-4 py-2 text-graphite">{{ $m['fecha'] }}</td>
+                                                    <td class="px-4 py-2 font-semibold text-ink">{{ $m['concepto'] }}</td>
+                                                    <td class="px-4 py-2 text-right {{ $m['tipo'] === 'debe' ? 'font-bold text-danger' : 'text-gray-300' }}">{{ $m['tipo'] === 'debe' ? '$' . number_format($m['monto'], 2, ',', '.') : '—' }}</td>
+                                                    <td class="px-4 py-2 text-right {{ $m['tipo'] === 'haber' ? 'font-bold text-success' : 'text-gray-300' }}">{{ $m['tipo'] === 'haber' ? '$' . number_format($m['monto'], 2, ',', '.') : '—' }}</td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @endif
+                        </div>
+                    @empty
+                        <p class="py-8 text-center text-sm text-muted">Este cliente no tiene créditos.</p>
+                    @endforelse
                 </div>
 
             @elseif ($tab === 'cuotas')
@@ -256,7 +334,7 @@
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
-                    <thead><tr class="text-[11px] uppercase tracking-wide text-muted"><th class="px-5 py-3 font-bold">Cliente</th><th class="px-5 py-3 font-bold">Riesgo</th><th class="px-5 py-3 text-right font-bold">Límite</th><th class="px-5 py-3 text-right font-bold">Saldo</th><th class="px-5 py-3 text-center font-bold">Uso</th><th class="px-5 py-3 text-right font-bold">Acciones</th></tr></thead>
+                    <thead><tr class="text-[11px] uppercase tracking-wide text-muted"><th class="px-5 py-3 font-bold">Cliente</th><th class="px-5 py-3 font-bold">Riesgo</th><th class="px-5 py-3 font-bold">Semáforo</th><th class="px-5 py-3 text-right font-bold">Límite</th><th class="px-5 py-3 text-right font-bold">Saldo</th><th class="px-5 py-3 text-center font-bold">Uso</th><th class="px-5 py-3 text-right font-bold">Acciones</th></tr></thead>
                     <tbody class="tabular">
                         @forelse ($filas as $i => $c)
                             @php $u = $c['limite'] > 0 ? round($c['saldo'] / $c['limite'] * 100) : 0; @endphp
@@ -270,6 +348,12 @@
                                     <p class="text-xs text-muted">{{ $c['doc'] }}</p>
                                 </td>
                                 <td class="px-5 py-3"><span class="rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide {{ $riesgoBadge[$c['riesgo']] }}">{{ $c['riesgo'] }}</span></td>
+                                <td class="px-5 py-3">
+                                    @php [$lDot, $lTxt, $lBg] = \App\Support\Semaforo::clases($c['semaforo']['estado']); @endphp
+                                    <span class="inline-flex items-center gap-1.5 rounded-full {{ $lBg }} px-2 py-0.5 text-[11px] font-bold {{ $lTxt }}" title="{{ \App\Support\Semaforo::label($c['semaforo']['estado']) }}">
+                                        <span class="h-2 w-2 rounded-full {{ $lDot }}"></span> {{ \App\Support\Semaforo::label($c['semaforo']['estado']) }}@if ($c['semaforo']['vencidas'] > 0) · {{ $c['semaforo']['vencidas'] }}@endif
+                                    </span>
+                                </td>
                                 <td class="px-5 py-3 text-right text-graphite">${{ number_format($c['limite'], 0, ',', '.') }}</td>
                                 <td class="px-5 py-3 text-right font-bold text-ink">${{ number_format($c['saldo'], 0, ',', '.') }}</td>
                                 <td class="px-5 py-3 text-center {{ $u >= 90 ? 'font-bold text-danger' : 'text-graphite' }}">{{ $u }}%</td>

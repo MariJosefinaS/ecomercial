@@ -194,6 +194,19 @@ class Nueva extends Component
         $this->altaCliente = false;
     }
 
+    /**
+     * Semáforo del cliente para el VENDEDOR (solo la advertencia de riesgo, sin cifras).
+     * El detalle financiero completo se muestra recién al aprobar (admin/super_admin).
+     */
+    public function getSemaforoClienteProperty(): ?array
+    {
+        if (! $this->cliId) {
+            return null;
+        }
+
+        return \App\Support\Semaforo::deCliente($this->cliId, \Illuminate\Support\Carbon::today());
+    }
+
     public function getPerfilClienteProperty(): ?array
     {
         if (! $this->cliId) {

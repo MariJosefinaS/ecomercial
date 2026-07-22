@@ -96,18 +96,18 @@
                     <p class="text-[11px] font-bold uppercase text-muted">Clientes en cartera</p>
                     <p class="tabular mt-1 text-lg font-extrabold text-ink">{{ $stats['clientes'] }}</p>
                 </div>
-                {{-- Comisión a cobrar = % (propio o general) sobre lo CONFIRMADO --}}
+                {{-- Saldo a cobrar (de tu cuenta): comisión devengada − pagos recibidos --}}
                 <div class="col-span-2 rounded-2xl border border-brand/30 bg-brand-soft/40 p-4 shadow-soft sm:col-span-1">
-                    <p class="text-[11px] font-bold uppercase text-brand">Comisión a cobrar (mes)</p>
-                    <p class="tabular mt-1 text-2xl font-extrabold text-brand">{{ $money($stats['comisionMes']) }}</p>
+                    <p class="text-[11px] font-bold uppercase text-brand">Saldo a cobrar</p>
+                    <p class="tabular mt-1 text-2xl font-extrabold {{ $cuenta['saldo'] >= 0 ? 'text-brand' : 'text-red-600' }}">{{ $money($cuenta['saldo']) }}</p>
                     <p class="text-[11px] text-muted">
-                        {{ rtrim(rtrim(number_format($stats['comisionPct'], 2, ',', '.'), '0'), ',') }}% sobre lo confirmado
+                        Comisión {{ rtrim(rtrim(number_format($stats['comisionPct'], 2, ',', '.'), '0'), ',') }}%
                         <span class="font-bold {{ $stats['comisionPropia'] ? 'text-brand' : 'text-muted' }}">· {{ $stats['comisionPropia'] ? 'tuyo' : 'general' }}</span>
                     </p>
                 </div>
             </div>
 
-            <p class="mt-2 text-[11px] text-muted"><span class="material-symbols-outlined align-middle text-[14px]">info</span> Tus cobros impactan y generan comisión <b>recién cuando Tesorería confirma la rendición</b>. Lo pendiente de confirmar todavía no suma.</p>
+            <p class="mt-2 text-[11px] text-muted"><span class="material-symbols-outlined align-middle text-[14px]">info</span> Tus cobros generan comisión <b>recién cuando Tesorería confirma la rendición</b>. Lo pendiente de confirmar todavía no suma.</p>
 
             {{-- Zonas asignadas --}}
             <div class="mt-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-soft">
@@ -128,5 +128,76 @@
                 @endif
             </div>
         </div>
+
+        {{-- ===== Mi cuenta / ganancias ===== --}}
+        @if ($cuenta)
+            <div>
+                <h2 class="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-muted">
+                    <span class="material-symbols-outlined text-[18px] text-brand">account_balance_wallet</span> Mi cuenta — ganancias y pagos
+                </h2>
+
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div class="rounded-2xl border p-4 shadow-soft {{ $cuenta['saldo'] >= 0 ? 'border-green-100 bg-green-50/50' : 'border-red-100 bg-red-50/50' }}">
+                        <p class="text-[11px] font-bold uppercase text-muted">Saldo {{ $cuenta['saldo'] < 0 ? '(pagado de más)' : 'a cobrar' }}</p>
+                        <p class="tabular mt-1 text-2xl font-extrabold {{ $cuenta['saldo'] >= 0 ? 'text-green-700' : 'text-red-600' }}">{{ $money($cuenta['saldo']) }}</p>
+                    </div>
+                    <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-soft"><p class="text-[11px] font-bold uppercase text-muted">Comisión devengada (total)</p><p class="tabular mt-1 text-lg font-extrabold text-ink">{{ $money($cuenta['devengado_total']) }}</p><p class="text-[11px] text-muted">Este mes {{ $money($cuenta['devengado_mes']) }}</p></div>
+                    <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-soft"><p class="text-[11px] font-bold uppercase text-muted">Pagos recibidos (total)</p><p class="tabular mt-1 text-lg font-extrabold text-ink">{{ $money($cuenta['pagado_total']) }}</p></div>
+                </div>
+
+                {{-- Solicitar adelanto --}}
+                <div class="mt-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-soft">
+                    <p class="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-muted"><span class="material-symbols-outlined text-[16px]">savings</span> Solicitar adelanto de sueldo</p>
+                    <div class="flex flex-wrap items-end gap-2">
+                        <div>
+                            <label class="mb-1 block text-[11px] font-semibold text-graphite">Monto</label>
+                            <div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">$</span>
+                                <input type="number" step="0.01" min="0" wire:model="adMonto" class="w-36 rounded-lg border border-gray-200 py-2 pl-7 pr-3 text-sm outline-none focus:border-brand" /></div>
+                        </div>
+                        <div class="min-w-[180px] flex-1">
+                            <label class="mb-1 block text-[11px] font-semibold text-graphite">Motivo (opcional)</label>
+                            <input type="text" wire:model="adMotivo" placeholder="Ej: gasto imprevisto" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
+                        </div>
+                        <button type="button" wire:click="solicitarAdelanto" class="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-brand-dark">Solicitar</button>
+                    </div>
+                    @error('adMonto') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    <p class="mt-1 text-[11px] text-muted">Queda <b>pendiente de aprobación del super administrador</b>. Una vez aprobado, Tesorería lo abona.</p>
+
+                    @if ($cuenta['adelantos']->isNotEmpty())
+                        <div class="mt-3 space-y-1.5">
+                            @foreach ($cuenta['adelantos'] as $ad)
+                                @php $badge = ['pendiente'=>'bg-amber-100 text-amber-700','aprobado'=>'bg-sky-100 text-sky-700','rechazado'=>'bg-red-100 text-red-700','pagado'=>'bg-green-100 text-green-700'][$ad->estado] ?? 'bg-gray-100 text-graphite'; @endphp
+                                <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                    <span class="text-graphite">{{ $ad->created_at?->format('d/m/Y') }} · {{ $money($ad->monto) }} @if ($ad->motivo)· {{ $ad->motivo }}@endif</span>
+                                    <span class="rounded-full px-2 py-0.5 font-bold {{ $badge }}">{{ $ad->estadoLabel() }}@if ($ad->estado === 'rechazado' && $ad->motivo_rechazo) · {{ $ad->motivo_rechazo }}@endif</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+
+                {{-- Movimientos de la cuenta --}}
+                <div class="mt-4 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-soft">
+                    <p class="border-b border-gray-100 px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-muted">Movimientos (comisiones y pagos)</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead><tr class="bg-gray-50 text-[11px] uppercase tracking-wide text-muted"><th class="px-4 py-2.5 font-bold">Fecha</th><th class="px-4 py-2.5 font-bold">Concepto</th><th class="px-4 py-2.5 text-right font-bold">Ganado (+)</th><th class="px-4 py-2.5 text-right font-bold">Pagado (−)</th></tr></thead>
+                            <tbody class="tabular">
+                                @forelse ($cuenta['movimientos'] as $m)
+                                    <tr class="border-t border-gray-100">
+                                        <td class="px-4 py-2.5 text-graphite">{{ $m->fecha?->format('d/m/Y H:i') }}</td>
+                                        <td class="px-4 py-2.5 font-semibold text-ink">{{ $m->concepto }}</td>
+                                        <td class="px-4 py-2.5 text-right {{ $m->tipo === 'haber' ? 'font-bold text-green-600' : 'text-gray-300' }}">{{ $m->tipo === 'haber' ? $money($m->monto) : '—' }}</td>
+                                        <td class="px-4 py-2.5 text-right {{ $m->tipo === 'debe' ? 'font-bold text-red-600' : 'text-gray-300' }}">{{ $m->tipo === 'debe' ? $money($m->monto) : '—' }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="4" class="px-4 py-8 text-center text-sm text-muted">Todavía no tenés movimientos. Cobrá y esperá la confirmación de Tesorería.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        @endif
     @endif
 </div>

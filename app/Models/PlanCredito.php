@@ -12,17 +12,18 @@ class PlanCredito extends Model
 {
     protected $table = 'planes_credito';
 
-    protected $fillable = ['codigo', 'nombre', 'modalidad', 'anticipo_pct', 'tasa_periodo', 'plazo_default', 'unidad', 'activo', 'orden'];
+    protected $fillable = ['codigo', 'nombre', 'modalidad', 'anticipo_pct', 'tasa_periodo', 'plazo_default', 'cuotas_incobrable', 'unidad', 'activo', 'orden'];
 
     protected $casts = [
         'anticipo_pct' => 'decimal:2',
         'tasa_periodo' => 'decimal:4',
         'plazo_default' => 'integer',
+        'cuotas_incobrable' => 'integer',
         'activo' => 'boolean',
     ];
 
-    /** Modalidades posibles. */
-    public const MODALIDADES = ['contado' => 'Contado', 'diario' => 'Diario', 'semanal' => 'Semanal'];
+    /** Modalidades posibles (el "tipo de plan": define el período de la cuota). */
+    public const MODALIDADES = ['contado' => 'Contado', 'diario' => 'Diario', 'semanal' => 'Semanal', 'mensual' => 'Mensual'];
 
     /** ¿Es financiación propia (no contado)? */
     public function esCredito(): bool

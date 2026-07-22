@@ -12,7 +12,7 @@ class CobroMedio extends Model
 
     protected $fillable = [
         'cobro_id', 'medio', 'monto', 'comprobante', 'banco', 'cheque_numero',
-        'estado_conciliacion', 'conciliado_por', 'conciliado_at',
+        'estado_conciliacion', 'no_rendido_motivo', 'conciliado_por', 'conciliado_at',
     ];
 
     protected $casts = ['monto' => 'decimal:2', 'conciliado_at' => 'datetime'];

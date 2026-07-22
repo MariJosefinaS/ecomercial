@@ -119,6 +119,21 @@ class CuentaEmpleado
         });
     }
 
+    /**
+     * Carga un DEBE en la cuenta del empleado (ej. cobro no rendido/robado). Reduce su saldo a favor
+     * (puede quedar negativo = el empleado le debe a la empresa). No toca caja (eso lo hace quien llama).
+     */
+    public static function cargar(int $empleadoId, float $monto, string $concepto, ?string $referencia, int $userId): void
+    {
+        if ($monto <= 0) {
+            return;
+        }
+        MovimientoEmpleado::create([
+            'empleado_id' => $empleadoId, 'tipo' => 'debe', 'concepto' => $concepto,
+            'monto' => round($monto, 2), 'referencia' => $referencia, 'fecha' => now(), 'registrado_por' => $userId,
+        ]);
+    }
+
     // ===== Adelantos de sueldo =====
     public static function solicitarAdelanto(int $empleadoId, float $monto, ?string $motivo): AdelantoSueldo
     {

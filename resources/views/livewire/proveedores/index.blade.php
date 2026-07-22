@@ -86,9 +86,19 @@
                 <div class="space-y-4 p-5">
                     @foreach ($proveedor['compras'] as $c)
                         <div class="overflow-hidden rounded-xl border border-gray-100">
-                            <div class="flex items-center justify-between bg-gray-50 px-4 py-2.5">
-                                <span class="text-sm font-bold text-ink">Factura {{ $c['fac'] }} <span class="font-medium text-muted">· {{ $c['fecha'] }}</span></span>
-                                <span class="tabular text-sm font-extrabold text-ink">${{ number_format($c['monto'], 2, ',', '.') }}</span>
+                            <div class="flex flex-wrap items-center justify-between gap-2 bg-gray-50 px-4 py-2.5">
+                                <span class="text-sm font-bold text-ink">
+                                    {{ $c['tiene_factura'] ? 'Factura' : 'Remito' }} {{ $c['fac'] }} <span class="font-medium text-muted">· {{ $c['fecha'] }}</span>
+                                    @if (! $c['tiene_factura'])<span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700" title="Recibido sin factura — no impacta la cuenta del proveedor hasta cargar la factura">P · sin factura</span>@endif
+                                </span>
+                                <div class="flex items-center gap-2">
+                                    <span class="tabular text-sm font-extrabold text-ink">${{ number_format($c['monto'], 2, ',', '.') }}</span>
+                                    @if (! $c['tiene_factura'])
+                                        @puede('gestionar_proveedores')
+                                            <button wire:click="pedirCargarFactura({{ $c['id'] }})" class="inline-flex items-center gap-1 rounded-lg border border-brand/30 bg-brand-soft/50 px-2.5 py-1 text-[11px] font-bold text-brand hover:bg-brand-soft"><span class="material-symbols-outlined text-[14px]">receipt_long</span> Cargar factura</button>
+                                        @endpuede
+                                    @endif
+                                </div>
                             </div>
                             <div class="overflow-x-auto">
                             <table class="w-full text-left text-sm">
@@ -110,6 +120,33 @@
                 </div>
 
             @elseif ($tab === 'pagos')
+                {{-- Obligaciones (facturas) a pagar --}}
+                @php $obPend = collect($proveedor['obligaciones'])->where('saldo', '>', 0); @endphp
+                <div class="border-b border-gray-100 p-5">
+                    <p class="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted">Facturas a pagar</p>
+                    @if ($obPend->isEmpty())
+                        <p class="text-sm text-muted">No hay facturas pendientes de pago.</p>
+                    @else
+                        <div class="divide-y divide-gray-100 rounded-xl border border-gray-100">
+                            @foreach ($obPend as $ob)
+                                <div class="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
+                                    <div>
+                                        <p class="text-sm font-bold text-ink">Factura {{ $ob['factura'] }} <span class="font-medium text-muted">· vence {{ $ob['vence'] }}</span></p>
+                                        <p class="text-[11px] text-muted">Total ${{ number_format($ob['monto'], 2, ',', '.') }} · Pagado ${{ number_format($ob['pagado'], 2, ',', '.') }}</p>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="tabular text-sm font-extrabold text-red-600">Saldo ${{ number_format($ob['saldo'], 2, ',', '.') }}</span>
+                                        @puede('gestionar_proveedores')
+                                            <button wire:click="pedirPagoProveedor({{ $ob['id'] }})" class="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">payments</span> Registrar pago</button>
+                                        @endpuede
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+
+                <p class="px-5 pt-4 text-[11px] font-bold uppercase tracking-wide text-muted">Pagos realizados</p>
                 <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
                     <thead><tr class="text-[11px] uppercase tracking-wide text-muted"><th class="px-5 py-3 font-bold">Fecha</th><th class="px-5 py-3 font-bold">Medio</th><th class="px-5 py-3 font-bold">Comprobante</th><th class="px-5 py-3 text-right font-bold">Monto</th></tr></thead>
@@ -320,6 +357,62 @@
                         <button type="submit" class="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-brand-dark">{{ $editId ? 'Guardar cambios' : 'Crear proveedor' }}</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    @endif
+
+    {{-- ===== Modal: Cargar factura (remito→factura) ===== --}}
+    @if ($facturaCompraId)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+                <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4"><h3 class="flex items-center gap-2 text-base font-extrabold text-ink"><span class="material-symbols-outlined text-brand">receipt_long</span> Cargar factura</h3><button wire:click="cerrarFactura" class="text-muted hover:text-ink"><span class="material-symbols-outlined">close</span></button></div>
+                <div class="space-y-3 p-5">
+                    <p class="text-sm text-muted">Al cargar la factura del proveedor se <b>genera la deuda</b> en su cuenta corriente (el remito ya sumó stock; recién ahora impacta la cuenta).</p>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-graphite">Número de factura</label>
+                        <input type="text" wire:model="facNumero" placeholder="Ej: A-0001-00012345" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
+                        @error('facNumero') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-graphite">Vencimiento</label>
+                        <input type="date" wire:model="facVencimiento" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
+                        @error('facVencimiento') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 border-t border-gray-100 px-5 py-4">
+                    <button wire:click="cerrarFactura" class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-bold text-graphite hover:bg-gray-100">Cancelar</button>
+                    <button wire:click="cargarFactura" class="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-brand-dark">Cargar factura</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- ===== Modal: Registrar pago a proveedor ===== --}}
+    @if ($pagoObligacionId)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+                <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4"><h3 class="flex items-center gap-2 text-base font-extrabold text-ink"><span class="material-symbols-outlined text-brand">payments</span> Registrar pago a proveedor</h3><button wire:click="cerrarPagoProveedor" class="text-muted hover:text-ink"><span class="material-symbols-outlined">close</span></button></div>
+                <div class="space-y-3 p-5">
+                    <p class="text-sm text-muted">Se registra un <b>egreso en caja</b> y baja el saldo de la factura.</p>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-graphite">Importe</label>
+                        <div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">$</span>
+                            <input type="number" step="0.01" min="0" wire:model="pagoMonto" class="w-full rounded-lg border border-gray-200 py-2 pl-7 pr-3 text-sm outline-none focus:border-brand" /></div>
+                        @error('pagoMonto') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-graphite">Medio</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            @foreach (['transferencia' => 'Transferencia', 'efectivo' => 'Efectivo', 'cheque' => 'Cheque'] as $val => $lbl)
+                                <button type="button" wire:click="$set('pagoMedio', '{{ $val }}')" class="rounded-lg border px-2 py-2 text-xs font-bold transition {{ $pagoMedio === $val ? 'border-brand bg-brand-soft text-brand' : 'border-gray-200 text-graphite hover:bg-gray-50' }}">{{ $lbl }}</button>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 border-t border-gray-100 px-5 py-4">
+                    <button wire:click="cerrarPagoProveedor" class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-bold text-graphite hover:bg-gray-100">Cancelar</button>
+                    <button wire:click="registrarPagoProveedor" class="inline-flex items-center gap-1 rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[18px]">check</span> Registrar pago</button>
+                </div>
             </div>
         </div>
     @endif

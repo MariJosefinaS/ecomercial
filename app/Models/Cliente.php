@@ -9,9 +9,17 @@ class Cliente extends Model
 {
     protected $table = 'clientes';
 
-    protected $fillable = ['nombre', 'tipo_doc', 'documento', 'telefono', 'email', 'fecha_nacimiento', 'direccion', 'zona_id', 'limite_credito', 'riesgo', 'activo', 'aprobado'];
+    protected $fillable = ['nombre', 'numero_cuenta', 'tipo_doc', 'documento', 'telefono', 'email', 'fecha_nacimiento', 'direccion', 'zona_id', 'limite_credito', 'riesgo', 'activo', 'aprobado'];
 
-    protected $casts = ['limite_credito' => 'decimal:2', 'activo' => 'boolean', 'aprobado' => 'boolean', 'fecha_nacimiento' => 'date'];
+    protected $casts = ['numero_cuenta' => 'integer', 'limite_credito' => 'decimal:2', 'activo' => 'boolean', 'aprobado' => 'boolean', 'fecha_nacimiento' => 'date'];
+
+    /** Asigna el número de cuenta (fijo, único) al dar de alta si no se pasó. */
+    protected static function booted(): void
+    {
+        static::creating(function (Cliente $c) {
+            $c->numero_cuenta ??= (int) (static::max('numero_cuenta') ?? 38000) + 1;
+        });
+    }
 
     public function zona(): \Illuminate\Database\Eloquent\Relations\BelongsTo { return $this->belongsTo(Zona::class); }
     public function cheques(): HasMany { return $this->hasMany(ChequeCliente::class); }

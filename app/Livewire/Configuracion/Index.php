@@ -63,6 +63,7 @@ class Index extends Component
     public string $nuevoPlanAnticipo = '0';
     public string $nuevoPlanTasa = '0';
     public string $nuevoPlanPlazo = '0';
+    public string $nuevoPlanIncobrable = '0';
 
     /** Categorías de productos (DB): [id, nombre, icono, productos]. */
     public array $categorias = [];
@@ -402,6 +403,7 @@ class Index extends Component
                 'anticipo_pct' => (float) $p->anticipo_pct,
                 'tasa_periodo' => (float) $p->tasa_periodo,
                 'plazo_default' => (int) $p->plazo_default,
+                'cuotas_incobrable' => (int) $p->cuotas_incobrable,
                 'unidad' => $p->unidad,
                 'activo' => (bool) $p->activo,
             ])->toArray();
@@ -435,10 +437,11 @@ class Index extends Component
             'anticipo_pct' => (float) ($this->nuevoPlanAnticipo ?: 0),
             'tasa_periodo' => (float) ($this->nuevoPlanTasa ?: 0),
             'plazo_default' => (int) ($this->nuevoPlanPlazo ?: 0),
+            'cuotas_incobrable' => max(0, (int) ($this->nuevoPlanIncobrable ?: 0)),
             'unidad' => $this->unidadDeModalidad($mod),
             'orden' => (PlanCredito::max('orden') ?? 0) + 1,
         ]);
-        $this->reset(['nuevoPlanNombre', 'nuevoPlanAnticipo', 'nuevoPlanTasa', 'nuevoPlanPlazo']);
+        $this->reset(['nuevoPlanNombre', 'nuevoPlanAnticipo', 'nuevoPlanTasa', 'nuevoPlanPlazo', 'nuevoPlanIncobrable']);
         $this->nuevoPlanModalidad = 'diario';
         $this->cargarPlanesCredito();
         $this->mensaje = "Plan de crédito «{$nombre}» agregado.";
@@ -454,6 +457,7 @@ class Index extends Component
                 'anticipo_pct' => (float) ($p['anticipo_pct'] ?: 0),
                 'tasa_periodo' => (float) ($p['tasa_periodo'] ?: 0),
                 'plazo_default' => (int) ($p['plazo_default'] ?: 0),
+                'cuotas_incobrable' => max(0, (int) ($p['cuotas_incobrable'] ?? 0)),
                 'unidad' => $this->unidadDeModalidad($mod),
                 'activo' => (bool) ($p['activo'] ?? true),
             ]);

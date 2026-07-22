@@ -10,6 +10,7 @@ use App\Models\MovimientoCliente;
 use App\Support\Recibo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use function Illuminate\Support\defer;
 
 /**
  * Servicio de cobranza: registra el cobro de cuotas del cronograma de crédito.
@@ -148,11 +149,17 @@ class Cobranza
             ];
         });
 
-        // Recibo por mail al cliente (comprobante + alerta post-cobro). Después del commit y
-        // protegido: un fallo de mail NO rompe el cobro (ver Recibo::enviarPorMail).
+        // Recibo por mail al cliente (comprobante + alerta post-cobro). Se genera/envía DIFERIDO
+        // (después de responder) para NO demorar el cobro con dompdf+mail. Protegido en enviarPorMail.
         $out['recibo_enviado'] = false;
         if (($out['ok'] ?? false) && ! empty($out['cobro_id']) && ($cobroModel = Cobro::find($out['cobro_id']))) {
-            $out['recibo_enviado'] = Recibo::enviarPorMail($cobroModel);
+            $cobroModel->loadMissing('cliente:id,email');
+            $email = $cobroModel->cliente?->email;
+            if ($email && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $out['recibo_enviado'] = true; // se manda en background
+                $cobroId = $cobroModel->id;
+                defer(fn () => Recibo::enviarPorMail(Cobro::find($cobroId)));
+            }
         }
 
         $msg = 'Cobro registrado: $' . number_format($out['monto'], 2, ',', '.') . ' (' . ($unMedio ? ($detMedios) : "mixto: {$detMedios}") . ').';

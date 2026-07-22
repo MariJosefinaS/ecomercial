@@ -14,6 +14,7 @@ use App\Livewire\Traspasos\Index as TraspasosIndex;
 use App\Livewire\Reportes\Index as ReportesIndex;
 use App\Livewire\Stock\Index as StockIndex;
 use App\Livewire\Stock\Reposicion as StockReposicion;
+use App\Livewire\Tesoreria\Empleados as TesoreriaEmpleados;
 use App\Livewire\Tesoreria\Index as TesoreriaIndex;
 use App\Livewire\Usuarios\Index as UsuariosIndex;
 use App\Livewire\Ventas\Index as VentasIndex;
@@ -98,6 +99,15 @@ Route::middleware(['auth', 'permiso'])->group(function () {
         return \App\Support\Recibo::pdf($cobro)->stream(\App\Support\Recibo::nombreArchivo($cobro));
     })->name('cobranza.recibo');
     Route::get('/tesoreria', TesoreriaIndex::class)->name('tesoreria');
+    Route::get('/tesoreria/empleados', TesoreriaEmpleados::class)->name('tesoreria.empleados'); // Pago a empleados / cuenta del cobrador
+    // Recibo de un pago a empleado (PDF firmable). Gated pagar_empleados.
+    Route::get('/tesoreria/pago/{pago}/recibo', function (\App\Models\PagoEmpleado $pago) {
+        abort_unless(\App\Support\Permisos::puede(Auth::user()?->rol, 'pagar_empleados'), 403);
+        $pago->load('empleado:id,name', 'tesorero:id,name');
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('tesoreria.recibo-pago-empleado', ['pago' => $pago])
+            ->setPaper('a4', 'portrait')
+            ->stream('recibo_pago_' . $pago->numero() . '.pdf');
+    })->name('tesoreria.pago.recibo');
     Route::get('/devoluciones', DevolucionesIndex::class)->name('devoluciones');
     Route::get('/reportes', ReportesIndex::class)->name('reportes');
     Route::get('/usuarios', UsuariosIndex::class)->name('usuarios');

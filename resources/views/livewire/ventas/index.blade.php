@@ -143,6 +143,7 @@
                                 <div class="flex items-center justify-end gap-2">
                                     @if ($v['estado'] === 'pendiente')
                                         @puede('aprobar_ventas')
+                                            <button wire:click="verClienteVenta({{ $v['id'] }})" class="flex items-center gap-1 rounded-lg border border-brand/30 bg-brand-soft/50 px-3 py-1.5 text-xs font-bold text-brand transition hover:bg-brand-soft" title="Ver situación del cliente antes de aprobar"><span class="material-symbols-outlined text-[16px]">badge</span> Ver cliente</button>
                                             <button wire:click="aprobar({{ $v['id'] }})" class="rounded-lg bg-success px-3 py-1.5 text-xs font-bold text-white transition hover:brightness-95">Aprobar</button>
                                             <button wire:click="rechazar({{ $v['id'] }})" class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-bold text-graphite transition hover:bg-gray-50">Rechazar</button>
                                         @else
@@ -436,6 +437,73 @@
                             @endforeach
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- ===== Modal detalle del cliente (para APROBAR) ===== --}}
+    @if ($clienteDet)
+        @php
+            $riesgoColor = ['alto' => 'bg-red-100 text-red-700', 'medio' => 'bg-amber-100 text-amber-700', 'bajo' => 'bg-green-100 text-green-700'];
+            [$cDot, $cTxt, $cBg] = \App\Support\Semaforo::clases($clienteDet['semaforo']['estado']);
+            $money = fn ($n) => '$' . number_format((float) $n, 2, ',', '.');
+        @endphp
+        <div class="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+            <div class="absolute inset-0 bg-black/50" wire:click="cerrarClienteDet"></div>
+            <div class="relative z-10 my-auto w-full max-w-xl rounded-2xl bg-white shadow-2xl">
+                <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+                    <div>
+                        <h3 class="text-base font-extrabold text-ink">{{ $clienteDet['nombre'] }}</h3>
+                        <p class="text-xs text-muted">{{ $clienteDet['doc'] }} · para aprobar {{ $clienteDet['venta'] }}</p>
+                    </div>
+                    <button wire:click="cerrarClienteDet" class="text-muted hover:text-danger"><span class="material-symbols-outlined">close</span></button>
+                </div>
+                <div class="max-h-[75vh] space-y-4 overflow-auto p-5">
+                    {{-- Semáforo + riesgo --}}
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex items-center gap-1.5 rounded-full {{ $cBg }} px-3 py-1 text-xs font-bold {{ $cTxt }}"><span class="h-2.5 w-2.5 rounded-full {{ $cDot }}"></span> {{ \App\Support\Semaforo::label($clienteDet['semaforo']['estado']) }}</span>
+                        <span class="rounded-full px-3 py-1 text-xs font-bold uppercase {{ $riesgoColor[$clienteDet['riesgo']] ?? 'bg-gray-100 text-graphite' }}">Riesgo {{ $clienteDet['riesgo'] }}</span>
+                        @if (! $clienteDet['aprobado'])<span class="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">Cliente nuevo</span>@endif
+                    </div>
+
+                    @if ($clienteDet['semaforo']['estado'] === 'rojo')
+                        <div class="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700"><span class="material-symbols-outlined text-[18px]">block</span> Cliente incobrable: dejó de pagar. Se recomienda RECHAZAR.</div>
+                    @elseif ($clienteDet['cheques_rechazados'] > 0 || $clienteDet['vencidas'] > 0)
+                        <div class="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-700"><span class="material-symbols-outlined text-[18px]">warning</span> Revisar: tiene atrasos o cheques rechazados.</div>
+                    @endif
+
+                    {{-- Métricas --}}
+                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        <div class="rounded-xl border border-gray-100 p-3"><p class="text-[10px] font-bold uppercase text-muted">Saldo cta. cte.</p><p class="tabular text-lg font-extrabold {{ $clienteDet['saldo'] > 0 ? 'text-red-600' : 'text-ink' }}">{{ $money($clienteDet['saldo']) }}</p></div>
+                        <div class="rounded-xl border border-gray-100 p-3"><p class="text-[10px] font-bold uppercase text-muted">Límite</p><p class="tabular text-lg font-extrabold text-ink">{{ $money($clienteDet['limite']) }}</p></div>
+                        <div class="rounded-xl border border-gray-100 p-3"><p class="text-[10px] font-bold uppercase text-muted">Veces que compró</p><p class="text-lg font-extrabold text-ink">{{ $clienteDet['compras'] }}</p></div>
+                        <div class="rounded-xl border border-gray-100 p-3"><p class="text-[10px] font-bold uppercase text-muted">Cheques rechazados</p><p class="text-lg font-extrabold {{ $clienteDet['cheques_rechazados'] > 0 ? 'text-red-600' : 'text-ink' }}">{{ $clienteDet['cheques_rechazados'] }}</p></div>
+                        <div class="rounded-xl border border-gray-100 p-3"><p class="text-[10px] font-bold uppercase text-muted">Cuotas vencidas</p><p class="text-lg font-extrabold {{ $clienteDet['vencidas'] > 0 ? 'text-amber-600' : 'text-ink' }}">{{ $clienteDet['vencidas'] }}@if ($clienteDet['max_atraso'] > 0) <span class="text-[11px] font-normal text-muted">({{ $clienteDet['max_atraso'] }}d)</span>@endif</p></div>
+                        <div class="rounded-xl border border-gray-100 p-3"><p class="text-[10px] font-bold uppercase text-muted">Devoluciones</p><p class="text-lg font-extrabold text-ink">{{ $clienteDet['devoluciones'] }}</p></div>
+                    </div>
+
+                    {{-- Historial de pago --}}
+                    <div>
+                        <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted">Historial de pago · {{ $clienteDet['cuotas_pagadas'] }}/{{ $clienteDet['cuotas_total'] }} cuotas pagadas</p>
+                        @if (empty($clienteDet['ultimos_pagos']))
+                            <p class="text-sm text-muted">Sin pagos registrados.</p>
+                        @else
+                            <div class="divide-y divide-gray-100 rounded-xl border border-gray-100">
+                                @foreach ($clienteDet['ultimos_pagos'] as $p)
+                                    <div class="flex items-center justify-between px-3 py-2 text-xs">
+                                        <span class="text-graphite">{{ $p['fecha'] }} · {{ $p['concepto'] }}</span>
+                                        <span class="tabular font-bold text-success">{{ $money($p['monto']) }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                </div>
+                <div class="flex flex-wrap justify-end gap-2 border-t border-gray-100 px-5 py-4">
+                    <button wire:click="cerrarClienteDet" class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-bold text-graphite hover:bg-gray-100">Cerrar</button>
+                    <button wire:click="rechazar({{ $clienteDetVentaId }})" class="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-100">Rechazar venta</button>
+                    <button wire:click="aprobar({{ $clienteDetVentaId }})" class="rounded-lg bg-success px-4 py-2 text-sm font-bold text-white hover:brightness-95">Aprobar venta</button>
                 </div>
             </div>
         </div>

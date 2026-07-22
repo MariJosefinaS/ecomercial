@@ -3,10 +3,13 @@
 namespace App\Livewire\Proveedores;
 
 use App\Livewire\Concerns\AutorizaPermisos;
+use App\Models\Compra;
 use App\Models\ConceptoPrecio;
 use App\Models\Devolucion;
+use App\Models\MovimientoCaja;
 use App\Models\PagoProveedor;
 use App\Models\Proveedor;
+use Illuminate\Support\Carbon;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -74,20 +77,30 @@ class Index extends Component
         $f = fn ($d) => $d?->format('d/m/Y');
 
         $compras = $p->compras()->with('items.producto:id,nombre')->orderByDesc('fecha')->orderByDesc('id')->get();
-        $pagos = PagoProveedor::with('compra:id,numero')->where('proveedor_id', $p->id)->orderByDesc('fecha_pago')->orderByDesc('id')->get();
+        $pagos = PagoProveedor::with('compra:id,numero,factura_numero')->where('proveedor_id', $p->id)->orderByDesc('id')->get();
 
-        // Movimientos de cuenta: compras (haber) + pagos (debe), ordenados por fecha.
+        // Movimientos de cuenta OBLIGACIÓN-BASED (R2): la deuda nace de la FACTURA (PagoProveedor),
+        // NO del remito. Un remito recibido sin factura suma stock pero NO impacta la cta cte.
         $movimientos = collect();
-        foreach ($compras as $c) {
-            $movimientos->push(['fecha_raw' => $c->fecha, 'fecha' => $f($c->fecha), 'tipo' => 'haber', 'concepto' => 'Compra ' . $c->numero, 'monto' => (float) $c->total]);
-        }
         foreach ($pagos as $pg) {
+            $comp = $pg->compra?->factura_numero ?: ($pg->compra?->numero ?? '');
+            $movimientos->push(['fecha_raw' => $pg->created_at ?? $pg->fecha_vencimiento, 'fecha' => $f($pg->created_at ?? $pg->fecha_vencimiento), 'tipo' => 'haber', 'concepto' => 'Factura ' . $comp, 'monto' => (float) $pg->monto]);
             if ((float) $pg->monto_pagado > 0) {
                 $fch = $pg->fecha_pago ?? $pg->fecha_vencimiento;
-                $movimientos->push(['fecha_raw' => $fch, 'fecha' => $f($fch), 'tipo' => 'debe', 'concepto' => 'Pago ' . ($pg->compra?->numero ?? ''), 'monto' => (float) $pg->monto_pagado]);
+                $movimientos->push(['fecha_raw' => $fch, 'fecha' => $f($fch), 'tipo' => 'debe', 'concepto' => 'Pago factura ' . $comp, 'monto' => (float) $pg->monto_pagado]);
             }
         }
         $base['movimientos'] = $movimientos->sortBy('fecha_raw')->map(fn ($m) => collect($m)->except('fecha_raw')->all())->values()->all();
+
+        // Obligaciones (facturas a pagar) con su saldo — para registrar pagos.
+        $base['obligaciones'] = $pagos->map(fn (PagoProveedor $pg) => [
+            'id' => $pg->id,
+            'factura' => $pg->compra?->factura_numero ?: ($pg->compra?->numero ?? '—'),
+            'vence' => $f($pg->fecha_vencimiento),
+            'monto' => (float) $pg->monto,
+            'pagado' => (float) $pg->monto_pagado,
+            'saldo' => max(0, (float) $pg->monto - (float) $pg->monto_pagado),
+        ])->values()->all();
 
         // Pedidos (= compras con su seguimiento de fechas/estado)
         $base['pedidos'] = $compras->map(fn ($c) => [
@@ -98,9 +111,13 @@ class Index extends Component
             'llegada' => $f($c->fecha_llegada),
         ])->all();
 
-        // Compras con artículos de cada factura
+        // Compras con artículos. Marca si tiene FACTURA cargada (si no, "P" = pendiente de factura).
+        $conObligacion = $pagos->pluck('compra_id')->filter()->unique()->all();
         $base['compras'] = $compras->map(fn ($c) => [
+            'id' => $c->id,
             'fac' => $c->factura_numero ?: $c->numero,
+            'tiene_factura' => (bool) $c->factura_numero || in_array($c->id, $conObligacion, true),
+            'recibida' => $c->estado === 'recibida',
             'fecha' => $f($c->fecha),
             'monto' => (float) $c->total,
             'items' => $c->items->map(fn ($it) => [
@@ -139,6 +156,114 @@ class Index extends Component
         $this->tab = 'cuenta';
         $this->mensaje = null;
         $this->cargarConceptos($id);
+    }
+
+    // ===== Cargar FACTURA sobre una compra recibida (remito→factura): genera la obligación/deuda =====
+    public ?int $facturaCompraId = null;
+    public string $facNumero = '';
+    public string $facVencimiento = '';
+
+    public function pedirCargarFactura(int $compraId): void
+    {
+        $this->autorizar('gestionar_proveedores');
+        $this->facturaCompraId = $compraId;
+        $this->facNumero = '';
+        $this->facVencimiento = Carbon::today()->addDays(30)->toDateString();
+        $this->resetValidation();
+    }
+
+    public function cerrarFactura(): void
+    {
+        $this->facturaCompraId = null;
+        $this->facNumero = '';
+    }
+
+    public function cargarFactura(): void
+    {
+        $this->autorizar('gestionar_proveedores');
+        $this->validate([
+            'facNumero' => 'required|min:1',
+            'facVencimiento' => 'required|date',
+        ], attributes: ['facNumero' => 'número de factura', 'facVencimiento' => 'vencimiento']);
+
+        $compra = Compra::find($this->facturaCompraId);
+        if (! $compra) {
+            return;
+        }
+        // Evitar duplicar la obligación de una misma compra.
+        if (PagoProveedor::where('compra_id', $compra->id)->exists()) {
+            $this->mensaje = 'Esa compra ya tiene una factura/obligación cargada.';
+            $this->cerrarFactura();
+            return;
+        }
+
+        $compra->update(['factura_numero' => $this->facNumero]);
+        PagoProveedor::create([
+            'proveedor_id' => $compra->proveedor_id,
+            'compra_id' => $compra->id,
+            'monto' => (float) $compra->total,
+            'monto_pagado' => 0,
+            'fecha_vencimiento' => $this->facVencimiento,
+            'estado' => 'pendiente',
+        ]);
+
+        $this->mensaje = "Factura {$this->facNumero} cargada — la deuda del proveedor se generó por \${$compra->total}.";
+        $this->cerrarFactura();
+    }
+
+    // ===== Registrar PAGO a proveedor (egreso en caja + baja la deuda) =====
+    public ?int $pagoObligacionId = null;
+    public string $pagoMonto = '';
+    public string $pagoMedio = 'transferencia';
+
+    public function pedirPagoProveedor(int $obligacionId): void
+    {
+        $this->autorizar('gestionar_proveedores');
+        $ob = PagoProveedor::find($obligacionId);
+        if (! $ob) {
+            return;
+        }
+        $this->pagoObligacionId = $ob->id;
+        $this->pagoMonto = (string) round(max(0, (float) $ob->monto - (float) $ob->monto_pagado), 2);
+        $this->pagoMedio = 'transferencia';
+        $this->resetValidation();
+    }
+
+    public function cerrarPagoProveedor(): void
+    {
+        $this->pagoObligacionId = null;
+        $this->pagoMonto = '';
+    }
+
+    public function registrarPagoProveedor(): void
+    {
+        $this->autorizar('gestionar_proveedores');
+        $ob = PagoProveedor::with('proveedor:id,nombre', 'compra:id,numero,factura_numero')->find($this->pagoObligacionId);
+        if (! $ob) {
+            return;
+        }
+        $saldo = round(max(0, (float) $ob->monto - (float) $ob->monto_pagado), 2);
+        $this->validate([
+            'pagoMonto' => 'required|numeric|min:0.01|max:' . $saldo,
+            'pagoMedio' => 'required|in:transferencia,efectivo,cheque',
+        ], messages: ['pagoMonto.max' => "No podés pagar más que el saldo (\${$saldo})."], attributes: ['pagoMonto' => 'importe']);
+
+        $monto = round((float) $this->pagoMonto, 2);
+        $ob->monto_pagado = round((float) $ob->monto_pagado + $monto, 2);
+        $ob->fecha_pago = now();
+        $ob->estado = $ob->monto_pagado >= (float) $ob->monto - 0.005 ? 'pagado' : 'parcial';
+        $ob->save();
+
+        $medioLbl = ['transferencia' => 'Transferencia', 'efectivo' => 'Efectivo', 'cheque' => 'Cheque'][$this->pagoMedio];
+        $fac = $ob->compra?->factura_numero ?: ($ob->compra?->numero ?? '');
+        MovimientoCaja::create([
+            'tipo' => 'egreso', 'medio' => $medioLbl,
+            'concepto' => 'Pago a proveedor ' . ($ob->proveedor?->nombre ?? '') . ($fac ? " · Factura {$fac}" : ''),
+            'monto' => $monto, 'fecha' => now(), 'referencia' => 'PAGOPROV',
+        ]);
+
+        $this->mensaje = 'Pago registrado (egreso en caja) por $' . number_format($monto, 2, ',', '.') . '.';
+        $this->cerrarPagoProveedor();
     }
 
     public function volver(): void { $this->sel = null; }

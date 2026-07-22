@@ -60,6 +60,7 @@
             'hoy'       => ['Vencen hoy', 'today'],
             'agenda'    => ['Agenda semanal', 'calendar_month'],
             'rendicion' => ['Rendición', 'account_balance_wallet'],
+            'incobrables' => ['Incobrables', 'gpp_bad'],
         ];
         if ($puedeNovedades) {
             $tabs['novedades'] = ['Novedades (no-visita)', 'event_busy'];
@@ -327,14 +328,18 @@
                         <div class="flex gap-4 text-right">
                             <div><p class="text-[11px] font-bold uppercase text-muted">A rendir</p><p class="tabular text-lg font-extrabold text-ink">{{ $money2($esp) }}</p></div>
                             <div><p class="text-[11px] font-bold uppercase text-muted">Ya rendido</p><p class="tabular text-lg font-extrabold text-green-600">{{ $money2($ef['ya_rendido']) }}</p></div>
+                            @if (($ef['no_rendido'] ?? 0) > 0)
+                                <div><p class="text-[11px] font-bold uppercase text-muted">No rendido</p><p class="tabular text-lg font-extrabold text-red-600">{{ $money2($ef['no_rendido']) }}</p></div>
+                            @endif
                         </div>
                     </div>
 
                     @if (! $filtroCobradorId)
                         <p class="px-4 py-6 text-center text-sm text-muted"><span class="material-symbols-outlined mb-1 block text-2xl">person_search</span> Elegí un cobrador arriba para registrar su rendición de efectivo.</p>
-                    @elseif ($esp <= 0)
-                        <p class="px-4 py-6 text-center text-sm text-muted"><span class="material-symbols-outlined mb-1 block text-2xl text-green-500">task_alt</span> No hay efectivo pendiente de rendir para este cobrador en la fecha.</p>
                     @else
+                        @if ($esp <= 0)
+                            <p class="px-4 pt-4 text-center text-sm text-muted"><span class="material-symbols-outlined mb-1 block text-2xl text-green-500">task_alt</span> No hay efectivo pendiente de rendir para este cobrador en la fecha.</p>
+                        @else
                         {{-- Formulario de rendición --}}
                         <div class="grid grid-cols-1 gap-3 border-b border-gray-100 p-4 sm:grid-cols-4">
                             <div>
@@ -357,27 +362,36 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
 
-                        {{-- Detalle de las partes en efectivo --}}
+                        {{-- Detalle de las partes en efectivo (siempre) --}}
+                        @if (! empty($ef['filas']))
                         <div class="overflow-x-auto">
                             <table class="w-full text-left text-sm">
-                                <thead><tr class="bg-gray-50 text-[11px] uppercase tracking-wide text-muted"><th class="px-4 py-2.5 font-bold">Cliente</th><th class="px-4 py-2.5 font-bold">Cobrador</th><th class="px-4 py-2.5 text-center font-bold">Hora</th><th class="px-4 py-2.5 text-right font-bold">Monto</th><th class="px-4 py-2.5 text-center font-bold">Estado</th></tr></thead>
+                                <thead><tr class="bg-gray-50 text-[11px] uppercase tracking-wide text-muted"><th class="px-4 py-2.5 font-bold">Cliente</th><th class="px-4 py-2.5 font-bold">Cobrador</th><th class="px-4 py-2.5 text-center font-bold">Hora</th><th class="px-4 py-2.5 text-right font-bold">Monto</th><th class="px-4 py-2.5 text-center font-bold">Estado</th><th class="px-4 py-2.5"></th></tr></thead>
                                 <tbody>
                                     @foreach ($ef['filas'] as $r)
-                                        <tr class="border-t border-gray-100 {{ $r['conciliado'] ? 'bg-green-50/40' : '' }}">
+                                        <tr class="border-t border-gray-100 {{ $r['no_rendido'] ? 'bg-red-50/40' : ($r['conciliado'] ? 'bg-green-50/40' : '') }}">
                                             <td class="px-4 py-2.5 font-semibold text-ink">{{ $r['cliente'] }}</td>
                                             <td class="px-4 py-2.5 text-graphite">{{ $r['cobrador'] }}</td>
                                             <td class="px-4 py-2.5 text-center text-muted">{{ $r['hora'] }}</td>
                                             <td class="px-4 py-2.5 text-right tabular font-bold text-ink">{{ $money2($r['monto']) }}</td>
                                             <td class="px-4 py-2.5 text-center">
-                                                @if ($r['conciliado'])<span class="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-bold text-green-700">Rendido</span>
+                                                @if ($r['no_rendido'])<span class="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700" title="{{ $r['motivo'] }}">No rendido</span>
+                                                @elseif ($r['conciliado'])<span class="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-bold text-green-700">Rendido</span>
                                                 @else<span class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">Pendiente</span>@endif
+                                            </td>
+                                            <td class="px-4 py-2.5 text-right">
+                                                @if (! $r['conciliado'] && ! $r['no_rendido'])
+                                                    <button type="button" wire:click="pedirNoRendido({{ $r['id'] }})" class="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1 text-[11px] font-bold text-red-700 hover:bg-red-50" title="El cobrador no entregó este efectivo (robo/pérdida)"><span class="material-symbols-outlined text-[14px]">report</span> No rendido</button>
+                                                @endif
                                             </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
+                        @endif
                     @endif
 
                     {{-- Historial de rendiciones del día --}}
@@ -443,6 +457,43 @@
                 @endforeach
             @endif
         </div>
+    @endif
+
+    {{-- ================= INCOBRABLES ================= --}}
+    @if ($tab === 'incobrables')
+        <x-panel title="Créditos incobrables">
+            <x-slot:actions>
+                <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">{{ $incobrables->count() }} crédito(s)</span>
+            </x-slot:actions>
+            <p class="px-5 pt-4 text-xs text-muted">Créditos que superaron el <b>umbral de cuotas vencidas de su plan</b> (Configuración → Productos de crédito). <b>Ya no aparecen en la planilla del cobrador</b> (no se visitan más). El umbral es por tipo de plan.</p>
+            <div class="overflow-x-auto p-5">
+                <table class="w-full text-left text-sm">
+                    <thead><tr class="bg-gray-50 text-[11px] uppercase tracking-wide text-muted">
+                        <th class="px-3 py-2.5 font-bold">Cliente</th>
+                        <th class="px-3 py-2.5 font-bold">Crédito · Plan</th>
+                        <th class="px-3 py-2.5 font-bold">Zona / Cobrador</th>
+                        <th class="px-3 py-2.5 text-center font-bold">Cuotas vencidas</th>
+                        <th class="px-3 py-2.5 text-right font-bold">Deuda</th>
+                    </tr></thead>
+                    <tbody>
+                        @forelse ($incobrables as $r)
+                            <tr class="border-t border-gray-100">
+                                <td class="px-3 py-2.5">
+                                    <p class="flex items-center gap-1.5 font-bold text-ink"><span class="h-2.5 w-2.5 rounded-full bg-red-500"></span> {{ $r['cliente'] }}</p>
+                                    <p class="text-[11px] text-muted">{{ $r['domicilio'] ?: '—' }} @if ($r['telefono'])· {{ $r['telefono'] }}@endif</p>
+                                </td>
+                                <td class="px-3 py-2.5"><p class="font-semibold text-graphite">{{ $r['venta'] }}</p><p class="text-[11px] text-muted">{{ $r['plan'] }}</p></td>
+                                <td class="px-3 py-2.5 text-graphite">{{ $r['zona'] }}<p class="text-[11px] text-muted">{{ $r['cobrador'] }}</p></td>
+                                <td class="px-3 py-2.5 text-center"><span class="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">{{ $r['vencidas'] }}</span> <span class="text-[11px] text-muted">/ {{ $r['umbral'] }}</span></td>
+                                <td class="px-3 py-2.5 text-right tabular font-bold text-ink">{{ $money2($r['deuda']) }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="5" class="px-4 py-12 text-center text-sm text-muted"><span class="material-symbols-outlined mb-1 block text-3xl text-green-500">verified_user</span> No hay créditos incobrables con los filtros actuales.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </x-panel>
     @endif
 
     {{-- ================= NOVEDADES: "el cobrador no pasó" ================= --}}
@@ -520,6 +571,30 @@
                 </table>
             </div>
         </x-panel>
+    @endif
+
+    {{-- ===== Modal "Cobro no rendido / robado" ===== --}}
+    @if ($noRendMedioId)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+                <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+                    <h3 class="flex items-center gap-2 text-base font-extrabold text-ink"><span class="material-symbols-outlined text-red-600">report</span> Cobro no rendido</h3>
+                    <button wire:click="cerrarNoRendido" class="text-muted hover:text-ink"><span class="material-symbols-outlined">close</span></button>
+                </div>
+                <div class="space-y-3 p-5">
+                    <p class="text-sm text-muted">Marcá este cobro como <b>no rendido</b> (el cobrador no entregó el efectivo: robo/pérdida). <b>El cliente no se afecta</b> (pagó, tiene recibo): se <b>revierte el ingreso en caja</b> y se le <b>carga el importe al cobrador</b> en su cuenta.</p>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-graphite">Motivo</label>
+                        <input type="text" wire:model="noRendMotivo" placeholder="Ej: robo denunciado, extravío…" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand" />
+                        @error('noRendMotivo') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 border-t border-gray-100 px-5 py-4">
+                    <button wire:click="cerrarNoRendido" class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-bold text-graphite hover:bg-gray-100">Cancelar</button>
+                    <button wire:click="marcarNoRendido" class="inline-flex items-center gap-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700"><span class="material-symbols-outlined text-[18px]">report</span> Marcar no rendido</button>
+                </div>
+            </div>
+        </div>
     @endif
 
 </div>

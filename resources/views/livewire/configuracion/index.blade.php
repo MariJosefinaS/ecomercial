@@ -216,12 +216,15 @@
             <button wire:click="guardarPlanesCredito" class="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[16px]">save</span> Guardar</button>
         </x-slot:actions>
         <p class="px-5 pt-4 text-xs text-muted">Planes de financiación propia. Al elegir el plan en la venta, el sistema calcula anticipo, saldo financiado y cuotas. La <b>tasa</b> es el % de interés por período (día o semana) e incluye la mora de cuotas vencidas. <span class="font-bold text-amber-700">⚠️ tasas provisionales — confirmar con el cliente.</span></p>
+        <p class="px-5 pt-1 text-xs text-muted"><b>Cuotas p/ incobrable:</b> a partir de cuántas <b>cuotas vencidas</b> un crédito de este plan pasa a <b>incobrable</b> y deja de aparecer en la planilla del cobrador. Al ser por plan, respeta el tipo (una mensual necesita pocas, una diaria muchas). <b>0 = nunca</b>.</p>
         <div class="overflow-x-auto p-5">
             <table class="w-full text-left text-sm">
                 <thead><tr class="bg-gray-50 text-[11px] uppercase tracking-wide text-muted">
                     <th class="px-3 py-2.5 font-bold">Plan</th><th class="px-3 py-2.5 font-bold">Modalidad</th>
                     <th class="px-3 py-2.5 text-right font-bold">Anticipo %</th><th class="px-3 py-2.5 text-right font-bold">Tasa %/período</th>
-                    <th class="px-3 py-2.5 text-right font-bold">Plazo</th><th class="px-3 py-2.5 text-center font-bold">Activo</th><th class="px-3 py-2.5"></th>
+                    <th class="px-3 py-2.5 text-right font-bold">Plazo</th>
+                    <th class="px-3 py-2.5 text-right font-bold">Cuotas p/ incobrable</th>
+                    <th class="px-3 py-2.5 text-center font-bold">Activo</th><th class="px-3 py-2.5"></th>
                 </tr></thead>
                 <tbody>
                     @forelse ($planesCredito as $i => $p)
@@ -235,6 +238,13 @@
                             <td class="px-3 py-2.5 text-right"><input type="number" step="0.01" min="0" wire:model="planesCredito.{{ $i }}.anticipo_pct" class="w-20 rounded-lg border border-gray-200 px-2 py-1 text-right text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" /></td>
                             <td class="px-3 py-2.5 text-right"><input type="number" step="0.0001" min="0" wire:model="planesCredito.{{ $i }}.tasa_periodo" class="w-24 rounded-lg border border-gray-200 px-2 py-1 text-right text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" /></td>
                             <td class="px-3 py-2.5 text-right"><input type="number" step="1" min="0" wire:model="planesCredito.{{ $i }}.plazo_default" class="w-16 rounded-lg border border-gray-200 px-2 py-1 text-right text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" /> <span class="text-[11px] text-muted">{{ $p['unidad'] }}</span></td>
+                            <td class="px-3 py-2.5 text-right">
+                                @if ($p['codigo'] === 'contado')
+                                    <span class="text-[11px] text-muted">—</span>
+                                @else
+                                    <input type="number" step="1" min="0" wire:model="planesCredito.{{ $i }}.cuotas_incobrable" class="w-20 rounded-lg border border-gray-200 px-2 py-1 text-right text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                                @endif
+                            </td>
                             <td class="px-3 py-2.5 text-center"><input type="checkbox" wire:model="planesCredito.{{ $i }}.activo" class="rounded border-gray-300 text-brand focus:ring-brand/30" /></td>
                             <td class="px-3 py-2.5 text-right">
                                 @if ($p['codigo'] !== 'contado')
@@ -243,7 +253,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="px-4 py-8 text-center text-sm text-muted">No hay planes definidos.</td></tr>
+                        <tr><td colspan="8" class="px-4 py-8 text-center text-sm text-muted">No hay planes definidos.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -258,6 +268,7 @@
             <div><label class="mb-1 block text-xs font-bold uppercase text-muted">Anticipo %</label><input type="number" step="0.01" min="0" wire:model="nuevoPlanAnticipo" class="w-24 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" /></div>
             <div><label class="mb-1 block text-xs font-bold uppercase text-muted">Tasa %/período</label><input type="number" step="0.0001" min="0" wire:model="nuevoPlanTasa" class="w-28 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" /></div>
             <div><label class="mb-1 block text-xs font-bold uppercase text-muted">Plazo</label><input type="number" step="1" min="0" wire:model="nuevoPlanPlazo" class="w-20 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" /></div>
+            <div><label class="mb-1 block text-xs font-bold uppercase text-muted">Cuotas p/ incobrable</label><input type="number" step="1" min="0" wire:model="nuevoPlanIncobrable" placeholder="0 = nunca" class="w-28 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" /></div>
             <button wire:click="agregarPlanCredito" class="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-brand-dark"><span class="material-symbols-outlined text-[20px]">add</span> Agregar plan</button>
         </div>
     </x-panel>

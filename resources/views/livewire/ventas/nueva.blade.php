@@ -58,18 +58,27 @@
                             @endif
                         </div>
 
-                        @if ($p = $this->perfilCliente)
-                            <div class="mt-3 grid grid-cols-2 gap-2 border-t border-gray-100 pt-3 text-center sm:grid-cols-4">
-                                <div><p class="text-[10px] font-semibold uppercase text-muted">Saldo cta. cte.</p><p class="text-sm font-extrabold {{ $p['saldo'] > 0 ? 'text-red-600' : 'text-ink' }}">${{ number_format($p['saldo'], 2, ',', '.') }}</p></div>
-                                <div><p class="text-[10px] font-semibold uppercase text-muted">Última compra</p><p class="text-sm font-extrabold text-ink">{{ $p['ultima_fecha'] ? '$' . number_format($p['ultima_monto'], 0, ',', '.') : '—' }}</p></div>
-                                <div><p class="text-[10px] font-semibold uppercase text-muted">Cheques rech.</p><p class="text-sm font-extrabold {{ $p['cheques_rechazados'] > 0 ? 'text-red-600' : 'text-ink' }}">{{ $p['cheques_rechazados'] }}</p></div>
-                                <div><p class="text-[10px] font-semibold uppercase text-muted">Devoluciones</p><p class="text-sm font-extrabold {{ $p['devoluciones'] > 0 ? 'text-amber-600' : 'text-ink' }}">{{ $p['devoluciones'] }}</p></div>
+                        {{-- El vendedor ve SOLO la advertencia de riesgo (semáforo), no las cifras.
+                             El detalle financiero completo se ve al aprobar (admin/super_admin). --}}
+                        @if ($s = $this->semaforoCliente)
+                            @php
+                                [$sDot, $sTxt, $sBg] = \App\Support\Semaforo::clases($s['estado']);
+                                $sLabel = \App\Support\Semaforo::label($s['estado']);
+                                $sMsg = [
+                                    'verde' => 'Cliente al día: viene pagando en término.',
+                                    'amarillo' => 'Cliente EN ATRASO: tiene cuotas vencidas. Revisá antes de dar más crédito.',
+                                    'rojo' => 'Cliente NO PAGA (incobrable): dejó de pagar. Se recomienda NO otorgar crédito.',
+                                    'gris' => 'Sin crédito activo: no hay historial de cuotas para evaluar.',
+                                ][$s['estado']] ?? '';
+                            @endphp
+                            <div class="mt-3 flex items-start gap-2 rounded-xl border-t border-gray-100 {{ $sBg }} px-3 py-2.5">
+                                <span class="mt-0.5 h-3 w-3 shrink-0 rounded-full {{ $sDot }}"></span>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold {{ $sTxt }}">Situación: {{ $sLabel }}</p>
+                                    <p class="text-xs {{ $sTxt }}">{{ $sMsg }}</p>
+                                    <p class="mt-0.5 text-[11px] text-muted">Riesgo evaluado: <b>{{ $cliRiesgo }}</b>@if ($s['vencidas'] > 0) · {{ $s['vencidas'] }} cuota(s) vencida(s)@endif. El detalle lo revisa quien aprueba la venta.</p>
+                                </div>
                             </div>
-                            @if ($p['cheques_rechazados'] > 0)
-                                <p class="mt-2 flex items-center gap-1 rounded-lg bg-red-50 px-2 py-1.5 text-xs font-semibold text-red-700">
-                                    <span class="material-symbols-outlined text-[16px]">block</span> Tiene {{ $p['cheques_rechazados'] }} cheque(s) rechazado(s) — mal pagador.
-                                </p>
-                            @endif
                         @endif
                     </div>
                 @else

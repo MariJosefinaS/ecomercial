@@ -12,10 +12,13 @@ use Illuminate\Support\Collection;
  */
 class Planilla
 {
-    /** Cuotas del día del cobrador: pendientes a cobrar (venc <= fecha, incl. morosos) + cobradas ese día. */
-    public static function cuotasDelDia(int $cobradorId, Carbon $f): Collection
+    /**
+     * Cuotas del día del cobrador: pendientes a cobrar (venc <= fecha, incl. morosos) + cobradas ese día.
+     * Los créditos INCOBRABLES (≥ umbral de cuotas vencidas de su plan) se excluyen: el cobrador no los visita más.
+     */
+    public static function cuotasDelDia(int $cobradorId, Carbon $f, bool $excluirIncobrables = true): Collection
     {
-        return Cuota::with(['cliente:id,nombre,direccion,telefono', 'venta:id,numero,modalidad,plan_nombre', 'zonaRel:id,nombre'])
+        $cuotas = Cuota::with(['cliente:id,nombre,numero_cuenta,direccion,telefono', 'venta:id,numero,credito,credito_barra,modalidad,plan_nombre', 'zonaRel:id,nombre'])
             ->whereHas('zonaRel', fn ($q) => $q->where('cobrador_id', $cobradorId))
             ->where(function ($q) use ($f) {
                 $q->where(fn ($w) => $w->where('estado', 'pendiente')->whereDate('fecha_vencimiento', '<=', $f))
@@ -23,6 +26,17 @@ class Planilla
             })
             ->orderBy('fecha_vencimiento')
             ->get();
+
+        if ($excluirIncobrables) {
+            $ventaIds = $cuotas->pluck('venta_id')->filter()->unique()->values()->all();
+            $incobrables = Incobrables::ventaIdsIncobrables($ventaIds, $f);
+            if (! empty($incobrables)) {
+                // Sacamos las cuotas PENDIENTES de créditos incobrables (las cobradas del día se conservan).
+                $cuotas = $cuotas->reject(fn (Cuota $c) => $c->estado === 'pendiente' && in_array($c->venta_id, $incobrables, true))->values();
+            }
+        }
+
+        return $cuotas;
     }
 
     /** Modalidades presentes ese día, en orden diario→semanal→mensual. */
@@ -45,7 +59,9 @@ class Planilla
                 'domicilio' => $c->cliente?->direccion ?? '',
                 'telefono' => $c->cliente?->telefono ?? '',
                 'zona' => $c->zonaRel?->nombre ?? ($c->zona ?: '—'),
-                'credito' => $c->venta?->numero ?? '—',
+                'credito' => ($c->venta?->credito_barra && $c->cliente?->numero_cuenta)
+                    ? $c->cliente->numero_cuenta . '/' . $c->venta->credito_barra
+                    : ($c->venta?->numero ?? '—'),
                 'plan' => $c->venta?->plan_nombre ?? ucfirst($modalidad),
                 'numero' => (int) $c->numero,
                 'vence' => $c->fecha_vencimiento->format('d/m/Y'),

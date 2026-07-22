@@ -4,8 +4,10 @@ namespace App\Livewire\Ventas;
 
 use App\Livewire\Concerns\AutorizaPermisos;
 use App\Models\ActivityLog;
+use App\Models\ChequeCliente;
 use App\Models\Cliente;
 use App\Models\Cuota;
+use App\Models\Devolucion;
 use App\Models\Local;
 use App\Models\MovimientoCliente;
 use App\Models\Producto;
@@ -40,6 +42,9 @@ class Index extends Component
 
     // Detalle de ítems de una venta (ver productos cargados).
     public ?int $detalleId = null;
+
+    // Detalle COMPLETO del cliente para el aprobador (situación de riesgo para decidir sí/no).
+    public ?int $clienteDetVentaId = null;
 
     // ===== Modal entrega (códigos de trazabilidad) =====
     public bool $modalEntrega = false;
@@ -95,6 +100,54 @@ class Index extends Component
     public function cerrarDetalle(): void
     {
         $this->detalleId = null;
+    }
+
+    // ===== Detalle del cliente para APROBAR (solo el aprobador) =====
+    public function verClienteVenta(int $ventaId): void
+    {
+        $this->autorizar('aprobar_ventas');
+        $this->clienteDetVentaId = $ventaId;
+    }
+
+    public function cerrarClienteDet(): void
+    {
+        $this->clienteDetVentaId = null;
+    }
+
+    /** Detalle completo del cliente de una venta (para que el supervisor decida sí/no). */
+    private function detalleClienteDe(int $ventaId): ?array
+    {
+        $venta = Venta::with('cliente')->find($ventaId);
+        $c = $venta?->cliente;
+        if (! $c) {
+            return null;
+        }
+        $hoy = Carbon::today();
+        $saldo = (float) MovimientoCliente::where('cliente_id', $c->id)
+            ->selectRaw("COALESCE(SUM(CASE WHEN tipo = 'debe' THEN monto ELSE -monto END), 0) as s")->value('s');
+        $cuotas = Cuota::where('cliente_id', $c->id)->get();
+        $vencidas = $cuotas->where('estado', 'pendiente')->filter(fn (Cuota $q) => $q->estaVencida($hoy));
+
+        return [
+            'venta' => $venta->numero,
+            'nombre' => $c->nombre,
+            'doc' => trim(($c->tipo_doc ?: '') . ' ' . ($c->documento ?: '')) ?: '—',
+            'riesgo' => $c->riesgo,
+            'aprobado' => (bool) $c->aprobado,
+            'semaforo' => \App\Support\Semaforo::deCliente($c->id, $hoy),
+            'saldo' => $saldo,
+            'limite' => (float) $c->limite_credito,
+            'cheques_rechazados' => ChequeCliente::where('cliente_id', $c->id)->where('estado', 'rechazado')->count(),
+            'vencidas' => $vencidas->count(),
+            'max_atraso' => (int) ($vencidas->max(fn (Cuota $q) => $q->diasAtraso($hoy)) ?? 0),
+            'cuotas_pagadas' => $cuotas->where('estado', 'cobrada')->count(),
+            'cuotas_total' => $cuotas->count(),
+            'compras' => Venta::where('cliente_id', $c->id)->whereIn('estado', ['aprobada', 'entregada'])->count(),
+            'devoluciones' => Devolucion::where('cliente_id', $c->id)->count(),
+            'ultimos_pagos' => MovimientoCliente::where('cliente_id', $c->id)->where('tipo', 'haber')
+                ->orderByDesc('fecha')->orderByDesc('id')->limit(6)->get()
+                ->map(fn ($m) => ['fecha' => $m->fecha?->format('d/m/Y'), 'concepto' => $m->concepto, 'monto' => (float) $m->monto])->all(),
+        ];
     }
 
     private function locales(): array
@@ -355,6 +408,7 @@ class Index extends Component
     public function aprobar(int $id): void
     {
         $this->autorizar('aprobar_ventas');
+        $this->clienteDetVentaId = null;
 
         $venta = Venta::with(['items', 'cliente'])->find($id);
         if (! $venta || $venta->estado !== 'pendiente') {
@@ -523,6 +577,7 @@ class Index extends Component
     public function rechazar(int $id): void
     {
         $this->autorizar('aprobar_ventas');
+        $this->clienteDetVentaId = null;
         if (! Venta::where('id', $id)->where('estado', 'pendiente')->exists()) {
             return;
         }
@@ -632,11 +687,18 @@ class Index extends Component
             }
         }
 
+        // Detalle del cliente para aprobar (solo si el aprobador lo abrió).
+        $clienteDet = null;
+        if ($this->clienteDetVentaId && $this->puede('aprobar_ventas')) {
+            $clienteDet = $this->detalleClienteDe($this->clienteDetVentaId);
+        }
+
         return view('livewire.ventas.index', [
             'filas' => $filas,
             'verTodas' => $verTodas,
             'locales' => $this->locales(),
             'detalle' => $detalle,
+            'clienteDet' => $clienteDet,
             'stats' => [
                 'pendientes' => $scoped()->where('estado', 'pendiente')->count(),
                 'aprobadas' => $scoped()->where('estado', 'aprobada')->count(),
