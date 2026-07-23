@@ -75,7 +75,7 @@
                     @foreach ($filas as $i => $r)
                         <tr>
                             <td class="num">{{ $i + 1 }}</td>
-                            <td><div class="cli">{{ $r['cliente'] }}</div><div class="dom">{{ $r['domicilio'] ?: '—' }} @if ($r['telefono']) · {{ $r['telefono'] }} @endif</div></td>
+                            <td><div class="cli">{{ $r['cliente'] }}</div><div class="dom">@if ($r['domicilio_etiqueta']){{ $r['domicilio_etiqueta'] }}: @endif{{ $r['domicilio'] ?: '—' }} @if ($r['telefono']) · {{ $r['telefono'] }} @endif @if ($r['referencia'])<br>({{ $r['referencia'] }})@endif</div></td>
                             <td>{{ $r['zona'] }}</td>
                             <td>{{ $r['credito'] }}<div class="dom">{{ $r['plan'] }}</div></td>
                             <td class="num">#{{ $r['numero'] }}</td>

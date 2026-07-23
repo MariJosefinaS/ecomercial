@@ -18,7 +18,14 @@ class Planilla
      */
     public static function cuotasDelDia(int $cobradorId, Carbon $f, bool $excluirIncobrables = true): Collection
     {
-        $cuotas = Cuota::with(['cliente:id,nombre,numero_cuenta,direccion,telefono', 'venta:id,numero,credito,credito_barra,modalidad,plan_nombre', 'zonaRel:id,nombre'])
+        $cuotas = Cuota::with([
+            'cliente:id,nombre,numero_cuenta,direccion,telefono',
+            // Domicilio(s) donde se COBRA (el principal primero): el cobrador ve a dónde ir.
+            'cliente.domicilios' => fn ($q) => $q->where('activo', true)->whereIn('uso', ['ambos', 'cobro'])
+                ->orderByDesc('es_principal')->orderBy('id'),
+            'venta:id,numero,credito,credito_barra,modalidad,plan_nombre',
+            'zonaRel:id,nombre',
+        ])
             ->whereHas('zonaRel', fn ($q) => $q->where('cobrador_id', $cobradorId))
             ->where(function ($q) use ($f) {
                 $q->where(fn ($w) => $w->where('estado', 'pendiente')->whereDate('fecha_vencimiento', '<=', $f))
@@ -53,11 +60,18 @@ class Planilla
     {
         return $cuotas
             ->filter(fn (Cuota $c) => ($c->venta?->modalidad) === $modalidad)
-            ->map(fn (Cuota $c) => [
+            ->map(function (Cuota $c) use ($f, $modalidad) {
+                // Domicilio de cobro del cliente (si cargó varios); si no tiene, la dirección de la ficha.
+                $dom = $c->cliente?->domicilios?->first();
+
+                return [
                 'id' => $c->id,
                 'cliente' => $c->cliente?->nombre ?? '—',
-                'domicilio' => $c->cliente?->direccion ?? '',
-                'telefono' => $c->cliente?->telefono ?? '',
+                'domicilio' => $dom?->completa() ?: ($c->cliente?->direccion ?? ''),
+                'domicilio_etiqueta' => $dom?->etiqueta,
+                'referencia' => $dom?->referencia,
+                'maps' => $dom?->mapsUrl(),
+                'telefono' => $dom?->telefono ?: ($c->cliente?->telefono ?? ''),
                 'zona' => $c->zonaRel?->nombre ?? ($c->zona ?: '—'),
                 'credito' => ($c->venta?->credito_barra && $c->cliente?->numero_cuenta)
                     ? $c->cliente->numero_cuenta . '/' . $c->venta->credito_barra
@@ -71,7 +85,8 @@ class Planilla
                 'total' => $c->totalAcobrar($f),
                 'estado' => $c->estado === 'cobrada' ? 'Cobrada' : ($c->estaVencida($f) ? 'Atrasada' : 'A cobrar'),
                 'cobrada' => $c->estado === 'cobrada',
-            ])->values()->all();
+                ];
+            })->values()->all();
     }
 
     /** Totales de una modalidad (esperado a cobrar vs cobrado ese día + eficacia). */

@@ -54,6 +54,12 @@
                 <p class="p-5 text-sm text-muted">No hay cheques que se debiten o deban depositarse en las próximas 48 horas.</p>
             </x-panel>
         @endif
+
+        <p class="text-sm text-muted">
+            <a href="{{ route('tesoreria.cheques') }}" wire:navigate class="inline-flex items-center gap-1 font-bold text-brand hover:underline">
+                <span class="material-symbols-outlined text-[18px]">account_balance_wallet</span> Ver la cartera de cheques completa
+            </a> — propios y de terceros, con calendario de los próximos 30 días.
+        </p>
     @endif
 
     {{-- ===== Movimientos de caja ===== --}}
@@ -74,60 +80,6 @@
                     @endforeach
                 </tbody>
             </table>
-            </div>
-        </x-panel>
-    @endif
-
-    {{-- ===== Cheques a depositar (clientes) ===== --}}
-    @if ($tab === 'depositar')
-        <x-panel title="Cheques a depositar">
-            <div class="divide-y divide-gray-100">
-                @foreach ($chequesDepositar as $i => $c)
-                    @php $d = \Carbon\Carbon::parse($c['deposito']); $dias = (int) $hoy->diffInDays($d, false); @endphp
-                    <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
-                        <div>
-                            <p class="text-sm font-bold text-ink">N° {{ $c['num'] }} <span class="font-medium text-muted">· {{ $c['banco'] }}</span></p>
-                            <p class="text-xs text-graphite">{{ $c['cliente'] }} · Depositar {{ $d->format('d/m/Y') }}
-                                <span class="font-bold {{ $dias === 0 ? 'text-green-700' : 'text-muted' }}">· {{ $dias < 0 ? 'vencido' : ($dias === 0 ? 'HOY' : 'en ' . $dias . ' días') }}</span></p>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="tabular text-sm font-extrabold text-ink">${{ number_format($c['monto'], 2, ',', '.') }}</span>
-                            <span class="inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase {{ $c['estado'] === 'depositado' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700' }}">{{ $c['estado'] }}</span>
-                            @if ($c['estado'] === 'pendiente')
-                                @puede('cargar_cheques')
-                                <button wire:click="marcarDepositado({{ $c['id'] }})" class="rounded-lg bg-success px-3 py-1.5 text-xs font-bold text-white hover:brightness-95">Marcar depositado</button>
-                                @endpuede
-                            @endif
-                        </div>
-                    </div>
-                @endforeach
-            </div>
-        </x-panel>
-    @endif
-
-    {{-- ===== Cheques a debitar (proveedores) ===== --}}
-    @if ($tab === 'debitar')
-        <x-panel title="Cheques a debitar">
-            <div class="divide-y divide-gray-100">
-                @foreach ($chequesDebitar as $i => $c)
-                    @php $d = \Carbon\Carbon::parse($c['debito']); $dias = (int) $hoy->diffInDays($d, false); @endphp
-                    <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 {{ $dias === 0 ? 'bg-red-50' : ($dias === 1 ? 'bg-amber-50' : '') }}">
-                        <div>
-                            <p class="text-sm font-bold text-ink">N° {{ $c['num'] }} <span class="font-medium text-muted">· {{ $c['banco'] }}</span></p>
-                            <p class="text-xs text-graphite">{{ $c['proveedor'] }} · Débito {{ $d->format('d/m/Y') }}
-                                <span class="font-bold {{ $dias === 0 ? 'text-red-700' : ($dias === 1 ? 'text-amber-700' : 'text-muted') }}">· {{ $dias < 0 ? 'debitado' : ($dias === 0 ? 'HOY' : ($dias === 1 ? 'MAÑANA' : 'en ' . $dias . ' días')) }}</span></p>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="tabular text-sm font-extrabold text-ink">${{ number_format($c['monto'], 2, ',', '.') }}</span>
-                            <span class="inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase {{ $c['estado'] === 'debitado' ? 'bg-gray-200 text-graphite' : 'bg-amber-100 text-amber-700' }}">{{ $c['estado'] }}</span>
-                            @if ($c['estado'] === 'pendiente')
-                                @puede('cargar_cheques')
-                                <button wire:click="marcarDebitado({{ $c['id'] }})" class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-bold text-graphite hover:bg-gray-50">Marcar debitado</button>
-                                @endpuede
-                            @endif
-                        </div>
-                    </div>
-                @endforeach
             </div>
         </x-panel>
     @endif

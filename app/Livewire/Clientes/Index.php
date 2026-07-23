@@ -7,8 +7,10 @@ use App\Models\Cliente;
 use App\Models\ChequeCliente;
 use App\Models\Cuota;
 use App\Models\Devolucion;
+use App\Models\DomicilioCliente;
 use App\Models\MovimientoCliente;
 use App\Models\Venta;
+use App\Models\Zona;
 use App\Support\Cobranza;
 use Illuminate\Support\Carbon;
 use Livewire\Attributes\Layout;
@@ -38,6 +40,22 @@ class Index extends Component
     public string $fDir = '';
     public string $fLimite = '0';
     public string $fRiesgo = 'bajo';
+
+    // ===== Modal domicilios (múltiples por cliente) =====
+    public bool $modalDom = false;
+    public ?int $domId = null;
+    public string $dEtiqueta = '';
+    public string $dDireccion = '';
+    public string $dLocalidad = '';
+    public string $dProvincia = '';
+    public string $dReferencia = '';
+    public string $dContacto = '';
+    public string $dTelefono = '';
+    public ?int $dZonaId = null;
+    public string $dLatitud = '';
+    public string $dLongitud = '';
+    public string $dUso = 'ambos';
+    public bool $dPrincipal = false;
 
     private function saldoDe(int $clienteId): float
     {
@@ -125,6 +143,26 @@ class Index extends Component
         $base['devoluciones'] = Devolucion::where('cliente_id', $c->id)->orderByDesc('id')->get()
             ->map(fn ($d) => ['fecha' => $d->fecha?->format('d/m/Y'), 'producto' => $d->producto, 'monto' => (float) $d->monto, 'motivo' => $d->motivo, 'estado' => $d->estado])->all();
 
+        // Domicilios múltiples (entrega y/o cobro), el principal primero.
+        $base['domicilios'] = $c->domicilios()->with('zona:id,nombre')
+            ->orderByDesc('es_principal')->orderBy('etiqueta')->get()
+            ->map(fn (DomicilioCliente $d) => [
+                'id' => $d->id,
+                'etiqueta' => $d->etiqueta,
+                'direccion' => $d->direccion,
+                'completa' => $d->completa(),
+                'referencia' => $d->referencia,
+                'contacto' => $d->contacto,
+                'telefono' => $d->telefono,
+                'zona' => $d->zona?->nombre,
+                'uso' => $d->uso,
+                'uso_label' => $d->usoLabel(),
+                'principal' => $d->es_principal,
+                'activo' => $d->activo,
+                'geo' => $d->tieneGeo(),
+                'maps' => $d->mapsUrl(),
+            ])->all();
+
         return $base;
     }
 
@@ -207,6 +245,131 @@ class Index extends Component
         $this->mensaje = $msg;
     }
 
+    // ===== Domicilios (múltiples por cliente) =====
+    private function resetFormDomicilio(): void
+    {
+        $this->reset(['dEtiqueta', 'dDireccion', 'dLocalidad', 'dProvincia', 'dReferencia', 'dContacto', 'dTelefono', 'dLatitud', 'dLongitud']);
+        $this->dZonaId = null;
+        $this->dUso = 'ambos';
+        $this->dPrincipal = false;
+        $this->resetValidation();
+    }
+
+    public function nuevoDomicilio(): void
+    {
+        $this->autorizar('gestionar_clientes');
+        $this->domId = null;
+        $this->resetFormDomicilio();
+        // El primero que se carga queda como principal por defecto.
+        $this->dPrincipal = $this->sel ? ! DomicilioCliente::where('cliente_id', $this->sel)->exists() : false;
+        $this->modalDom = true;
+    }
+
+    public function editarDomicilio(int $id): void
+    {
+        $this->autorizar('gestionar_clientes');
+        $d = DomicilioCliente::where('cliente_id', $this->sel)->find($id);
+        if (! $d) {
+            return;
+        }
+        $this->domId = $d->id;
+        $this->dEtiqueta = $d->etiqueta;
+        $this->dDireccion = $d->direccion;
+        $this->dLocalidad = $d->localidad ?? '';
+        $this->dProvincia = $d->provincia ?? '';
+        $this->dReferencia = $d->referencia ?? '';
+        $this->dContacto = $d->contacto ?? '';
+        $this->dTelefono = $d->telefono ?? '';
+        $this->dZonaId = $d->zona_id;
+        $this->dLatitud = $d->latitud !== null ? (string) $d->latitud : '';
+        $this->dLongitud = $d->longitud !== null ? (string) $d->longitud : '';
+        $this->dUso = $d->uso;
+        $this->dPrincipal = $d->es_principal;
+        $this->resetValidation();
+        $this->modalDom = true;
+    }
+
+    public function guardarDomicilio(): void
+    {
+        $this->autorizar('gestionar_clientes');
+        if (! $this->sel) {
+            return;
+        }
+        $this->validate([
+            'dEtiqueta' => 'required|min:2|max:60',
+            'dDireccion' => 'required|min:4',
+            'dUso' => 'required|in:ambos,entrega,cobro',
+            'dLatitud' => 'nullable|numeric|between:-90,90',
+            'dLongitud' => 'nullable|numeric|between:-180,180',
+        ], attributes: ['dEtiqueta' => 'etiqueta', 'dDireccion' => 'dirección', 'dUso' => 'uso', 'dLatitud' => 'latitud', 'dLongitud' => 'longitud']);
+
+        $attrs = [
+            'cliente_id' => $this->sel,
+            'etiqueta' => trim($this->dEtiqueta),
+            'direccion' => trim($this->dDireccion),
+            'localidad' => trim($this->dLocalidad) ?: null,
+            'provincia' => trim($this->dProvincia) ?: null,
+            'referencia' => trim($this->dReferencia) ?: null,
+            'contacto' => trim($this->dContacto) ?: null,
+            'telefono' => trim($this->dTelefono) ?: null,
+            'zona_id' => $this->dZonaId ?: null,
+            'latitud' => $this->dLatitud !== '' ? (float) $this->dLatitud : null,
+            'longitud' => $this->dLongitud !== '' ? (float) $this->dLongitud : null,
+            'uso' => $this->dUso,
+            'es_principal' => $this->dPrincipal,
+        ];
+
+        if ($this->domId) {
+            $d = DomicilioCliente::where('cliente_id', $this->sel)->find($this->domId);
+            if (! $d) {
+                return;
+            }
+            $d->update($attrs);
+            $this->mensaje = "Domicilio «{$attrs['etiqueta']}» actualizado.";
+        } else {
+            DomicilioCliente::create($attrs + ['activo' => true]);
+            $this->mensaje = "Domicilio «{$attrs['etiqueta']}» agregado.";
+        }
+
+        $this->modalDom = false;
+        $this->domId = null;
+    }
+
+    public function marcarPrincipal(int $id): void
+    {
+        $this->autorizar('gestionar_clientes');
+        $d = DomicilioCliente::where('cliente_id', $this->sel)->find($id);
+        if (! $d) {
+            return;
+        }
+        $d->update(['es_principal' => true]);   // el modelo desmarca los otros y sincroniza clientes.direccion
+        $this->mensaje = "«{$d->etiqueta}» es ahora el domicilio principal.";
+    }
+
+    public function eliminarDomicilio(int $id): void
+    {
+        $this->autorizar('gestionar_clientes');
+        $d = DomicilioCliente::where('cliente_id', $this->sel)->find($id);
+        if (! $d) {
+            return;
+        }
+        // Si alguna venta lo usa como destino de entrega, se da de baja (no se borra el histórico).
+        if (Venta::where('domicilio_entrega_id', $d->id)->exists()) {
+            $d->update(['activo' => false, 'es_principal' => false]);
+            $this->mensaje = "«{$d->etiqueta}» tiene entregas asociadas: se dio de BAJA (no se elimina el histórico).";
+
+            return;
+        }
+        $etiqueta = $d->etiqueta;
+        $eraPrincipal = $d->es_principal;
+        $d->delete();
+        // Si borramos el principal, promovemos el siguiente activo.
+        if ($eraPrincipal) {
+            DomicilioCliente::where('cliente_id', $this->sel)->where('activo', true)->orderBy('id')->first()?->update(['es_principal' => true]);
+        }
+        $this->mensaje = "Domicilio «{$etiqueta}» eliminado.";
+    }
+
     // ===== Cheques =====
     public function depositarCheque(int $id): void
     {
@@ -263,6 +426,7 @@ class Index extends Component
         return view('livewire.clientes.index', [
             'filas' => $filas,
             'cliente' => $sel ? $this->ficha($sel) : null,
+            'zonas' => Zona::where('activo', true)->orderBy('nombre')->get(['id', 'nombre']),
             'stats' => [
                 'total' => Cliente::count(),
                 'riesgo_alto' => Cliente::where('riesgo', 'alto')->count(),

@@ -12,7 +12,7 @@ class PedidoPago extends Model
 
     protected $fillable = [
         'tipo', 'proveedor_id', 'obligacion_id', 'empleado_id', 'adelanto_id',
-        'beneficiario', 'concepto', 'importe', 'medio', 'comprobante', 'banco', 'cheque_numero', 'comentario',
+        'beneficiario', 'concepto', 'importe', 'medio', 'comprobante', 'banco', 'cheque_numero', 'cheque_cliente_id', 'comentario',
         'estado', 'solicitado_por', 'autorizado_por', 'autorizado_at', 'motivo_rechazo',
         'procesado_por', 'procesado_at', 'resultado_ref',
     ];
@@ -28,6 +28,9 @@ class PedidoPago extends Model
     ];
 
     public const MEDIOS = ['transferencia' => 'Transferencia', 'efectivo' => 'Efectivo', 'cheque' => 'Cheque'];
+
+    /** Cheque de terceros que se endosa para saldar este pedido (si el pago es por endoso). */
+    public function chequeCliente(): BelongsTo { return $this->belongsTo(ChequeCliente::class, 'cheque_cliente_id'); }
 
     public function solicitante(): BelongsTo { return $this->belongsTo(User::class, 'solicitado_por'); }
     public function autorizador(): BelongsTo { return $this->belongsTo(User::class, 'autorizado_por'); }

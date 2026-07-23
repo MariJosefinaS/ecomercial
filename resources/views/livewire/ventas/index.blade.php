@@ -522,6 +522,22 @@
                     <button wire:click="$set('modalEntrega', false)" class="text-muted hover:text-danger"><span class="material-symbols-outlined">close</span></button>
                 </div>
 
+                {{-- A dónde va la mercadería (el cliente puede tener varios domicilios) --}}
+                @if (! empty($entregaDomicilio['direccion']))
+                    <div class="mb-3 rounded-xl border border-brand/30 bg-brand-soft/40 px-3 py-2.5">
+                        <p class="flex items-center gap-1.5 text-xs font-extrabold uppercase text-brand">
+                            <span class="material-symbols-outlined text-[16px]">local_shipping</span> Entregar en · {{ $entregaDomicilio['etiqueta'] }}
+                        </p>
+                        <p class="mt-0.5 text-sm font-semibold text-ink">{{ $entregaDomicilio['direccion'] }}</p>
+                        @if (! empty($entregaDomicilio['referencia']))<p class="text-xs italic text-graphite">{{ $entregaDomicilio['referencia'] }}</p>@endif
+                        <p class="mt-0.5 text-xs text-graphite">
+                            @if (! empty($entregaDomicilio['contacto']))Recibe: <b>{{ $entregaDomicilio['contacto'] }}</b>@endif
+                            @if (! empty($entregaDomicilio['telefono'])) · {{ $entregaDomicilio['telefono'] }}@endif
+                            @if (! empty($entregaDomicilio['maps'])) · <a href="{{ $entregaDomicilio['maps'] }}" target="_blank" rel="noopener" class="font-bold text-brand hover:underline">ver en mapa</a>@endif
+                        </p>
+                    </div>
+                @endif
+
                 <div class="max-h-[55vh] space-y-2 overflow-y-auto">
                     @foreach ($entCodigos as $i => $row)
                         <div wire:key="ent-{{ $i }}" class="grid grid-cols-5 items-center gap-2">

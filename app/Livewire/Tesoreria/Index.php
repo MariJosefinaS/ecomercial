@@ -20,12 +20,17 @@ class Index extends Component
     use AutorizaPermisos;
 
     #[Url(as: 'sub')]
-    public string $tab = 'resumen';   // resumen | caja | depositar | debitar | proyeccion
+    public string $tab = 'resumen';   // resumen | caja | proyeccion
     public ?string $mensaje = null;
 
-    public function mount(): void
+    public function mount()
     {
         $this->autorizar('ver_tesoreria'); // defensa en profundidad (además del middleware de ruta)
+
+        // Los cheques viven ahora en su propia pantalla (cartera + calendario + endoso).
+        if (in_array($this->tab, ['depositar', 'debitar'], true)) {
+            return $this->redirectRoute('tesoreria.cheques', navigate: true);
+        }
     }
 
     /** Saldo actual de caja = ingresos - egresos registrados. */
@@ -56,36 +61,6 @@ class Index extends Component
         return Cheque::with('proveedor:id,nombre')
             ->whereIn('estado', ['pendiente', 'cobrado'])
             ->orderBy('fecha_vencimiento')->get();
-    }
-
-    public function marcarDepositado(int $id): void
-    {
-        $this->autorizar('cargar_cheques');
-        $ch = ChequeCliente::with('cliente:id,nombre')->find($id);
-        if (! $ch || $ch->estado !== 'pendiente') {
-            return;
-        }
-        $ch->update(['estado' => 'depositado', 'fecha_deposito' => $ch->fecha_deposito ?? now()]);
-        MovimientoCaja::create([
-            'tipo' => 'ingreso', 'concepto' => 'Cheque depositado ' . $ch->numero . ' · ' . ($ch->cliente?->nombre ?? ''),
-            'medio' => 'Cheque', 'monto' => $ch->monto, 'fecha' => now(), 'referencia' => $ch->numero,
-        ]);
-        $this->mensaje = "Cheque {$ch->numero} depositado: ingreso registrado en caja.";
-    }
-
-    public function marcarDebitado(int $id): void
-    {
-        $this->autorizar('cargar_cheques');
-        $ch = Cheque::with('proveedor:id,nombre')->find($id);
-        if (! $ch || $ch->estado !== 'pendiente') {
-            return;
-        }
-        $ch->update(['estado' => 'cobrado']);
-        MovimientoCaja::create([
-            'tipo' => 'egreso', 'concepto' => 'Cheque debitado ' . $ch->numero . ' · ' . ($ch->proveedor?->nombre ?? ''),
-            'medio' => 'Cheque', 'monto' => $ch->monto, 'fecha' => now(), 'referencia' => $ch->numero,
-        ]);
-        $this->mensaje = "Cheque {$ch->numero} debitado: egreso registrado en caja.";
     }
 
     /**
@@ -141,28 +116,6 @@ class Index extends Component
                 'monto' => (float) $m->monto,
             ])->all();
 
-        // Cheques a depositar (clientes)
-        $chequesDepositar = $depositar->map(fn (ChequeCliente $c) => [
-            'id' => $c->id,
-            'num' => $c->numero,
-            'banco' => $c->banco ?? '—',
-            'cliente' => $c->cliente?->nombre ?? '—',
-            'deposito' => $fmtDateStr($c->fecha_deposito ?? $c->fecha_vencimiento),
-            'monto' => (float) $c->monto,
-            'estado' => $c->estado === 'pendiente' ? 'pendiente' : 'depositado',
-        ])->all();
-
-        // Cheques a debitar (proveedores) — DB 'cobrado' → vista 'debitado'
-        $chequesDebitar = $debitar->map(fn (Cheque $c) => [
-            'id' => $c->id,
-            'num' => $c->numero,
-            'banco' => $c->banco ?? '—',
-            'proveedor' => $c->proveedor?->nombre ?? '—',
-            'debito' => $fmtDateStr($c->fecha_vencimiento),
-            'monto' => (float) $c->monto,
-            'estado' => $c->estado === 'pendiente' ? 'pendiente' : 'debitado',
-        ])->all();
-
         // Proyección a 7 días
         $proyeccion = [];
         $saldo = $this->saldoCaja();
@@ -181,8 +134,6 @@ class Index extends Component
 
         return view('livewire.tesoreria.index', [
             'movimientos' => $movimientos,
-            'chequesDepositar' => $chequesDepositar,
-            'chequesDebitar' => $chequesDebitar,
             'proyeccion' => $proyeccion,
             'avisos' => [
                 'debitar_hoy' => $aDebitarHoy->map(fn ($c) => ['num' => $c->numero, 'proveedor' => $c->proveedor?->nombre ?? '—', 'monto' => (float) $c->monto])->values()->all(),

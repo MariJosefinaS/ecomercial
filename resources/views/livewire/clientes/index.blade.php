@@ -102,7 +102,7 @@
         {{-- Tabs de la ficha --}}
         <x-panel>
             <div class="flex items-center gap-1 border-b border-gray-100 px-3">
-                @foreach (['cuenta' => 'Cuenta corriente', 'creditos' => 'Créditos', 'cuotas' => 'Cuotas', 'compras' => 'Compras', 'pagos' => 'Pagos', 'cheques' => 'Cheques', 'devoluciones' => 'Devoluciones'] as $t => $lbl)
+                @foreach (['cuenta' => 'Cuenta corriente', 'creditos' => 'Créditos', 'cuotas' => 'Cuotas', 'domicilios' => 'Domicilios', 'compras' => 'Compras', 'pagos' => 'Pagos', 'cheques' => 'Cheques', 'devoluciones' => 'Devoluciones'] as $t => $lbl)
                     <button wire:click="setTab('{{ $t }}')" class="-mb-px border-b-2 px-4 py-3 text-sm font-bold transition {{ $tab === $t ? 'border-brand text-brand' : 'border-transparent text-graphite hover:text-brand' }}">{{ $lbl }}</button>
                 @endforeach
             </div>
@@ -282,6 +282,60 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
+
+            @elseif ($tab === 'domicilios')
+                {{-- Domicilios MÚLTIPLES: casa, negocio, casa de un familiar… (entrega y/o cobro) --}}
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
+                    <p class="text-xs text-muted">Dónde se <b>entrega</b> la mercadería y dónde se <b>cobra</b> la cuota. El domicilio <b>principal</b> es el que sale por defecto.</p>
+                    @puede('gestionar_clientes')
+                        <button type="button" wire:click="nuevoDomicilio" class="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-xs font-bold text-white transition hover:bg-brand-dark">
+                            <span class="material-symbols-outlined text-[18px]">add_location_alt</span> Agregar domicilio
+                        </button>
+                    @endpuede
+                </div>
+                <div class="divide-y divide-gray-100">
+                    @forelse ($cliente['domicilios'] as $d)
+                        @php
+                            $usoCls = match ($d['uso']) {
+                                'entrega' => 'bg-sky-100 text-sky-700',
+                                'cobro' => 'bg-purple-100 text-purple-700',
+                                default => 'bg-gray-100 text-graphite',
+                            };
+                        @endphp
+                        <div class="flex flex-wrap items-start justify-between gap-3 px-5 py-4 {{ $d['activo'] ? '' : 'opacity-60' }}" wire:key="dom-{{ $d['id'] }}">
+                            <div class="min-w-0 flex-1">
+                                <p class="flex flex-wrap items-center gap-2 text-sm font-bold text-ink">
+                                    <span class="material-symbols-outlined text-[18px] text-brand">{{ $d['principal'] ? 'home_pin' : 'location_on' }}</span>
+                                    {{ $d['etiqueta'] }}
+                                    @if ($d['principal'])<span class="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-extrabold uppercase text-brand">Principal</span>@endif
+                                    <span class="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase {{ $usoCls }}">{{ $d['uso_label'] }}</span>
+                                    @if (! $d['activo'])<span class="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-bold uppercase text-graphite">Baja</span>@endif
+                                </p>
+                                <p class="mt-0.5 text-sm text-graphite">{{ $d['completa'] }}</p>
+                                @if ($d['referencia'])<p class="text-xs text-muted">Referencia: {{ $d['referencia'] }}</p>@endif
+                                <p class="mt-0.5 text-xs text-muted">
+                                    @if ($d['contacto'])Recibe: <b>{{ $d['contacto'] }}</b> · @endif
+                                    @if ($d['telefono']){{ $d['telefono'] }} · @endif
+                                    @if ($d['zona'])Zona {{ $d['zona'] }}@else <span class="text-amber-600">Sin zona</span>@endif
+                                </p>
+                            </div>
+                            <div class="flex shrink-0 flex-wrap items-center gap-2">
+                                <a href="{{ $d['maps'] }}" target="_blank" rel="noopener" class="flex items-center gap-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs font-bold text-graphite hover:bg-gray-50">
+                                    <span class="material-symbols-outlined text-[16px]">map</span> {{ $d['geo'] ? 'Ver en mapa' : 'Buscar en mapa' }}
+                                </a>
+                                @puede('gestionar_clientes')
+                                    @if (! $d['principal'] && $d['activo'])
+                                        <button type="button" wire:click="marcarPrincipal({{ $d['id'] }})" class="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs font-bold text-graphite hover:bg-gray-50">Hacer principal</button>
+                                    @endif
+                                    <button type="button" wire:click="editarDomicilio({{ $d['id'] }})" class="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs font-bold text-graphite hover:bg-gray-50">Editar</button>
+                                    <button type="button" wire:click="eliminarDomicilio({{ $d['id'] }})" class="rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50">Eliminar</button>
+                                @endpuede
+                            </div>
+                        </div>
+                    @empty
+                        <p class="px-5 py-8 text-center text-sm text-muted">Sin domicilios cargados. Agregá el de la casa, el del negocio o el de un familiar.</p>
+                    @endforelse
                 </div>
 
             @elseif ($tab === 'cheques')
@@ -472,6 +526,93 @@
                     <div class="mt-5 flex justify-end gap-2 border-t border-gray-100 pt-4">
                         <button type="button" wire:click="$set('modal', false)" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-bold text-graphite hover:bg-gray-50">Cancelar</button>
                         <button type="submit" class="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-brand-dark">{{ $editId ? 'Guardar cambios' : 'Crear cliente' }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    {{-- ===== Modal alta / edición de DOMICILIO ===== --}}
+    @if ($modalDom)
+        <div class="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+            <div class="absolute inset-0 bg-black/50" wire:click="$set('modalDom', false)"></div>
+            <div class="relative z-10 my-auto max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl">
+                <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+                    <h3 class="text-base font-extrabold text-ink">{{ $domId ? 'Editar domicilio' : 'Nuevo domicilio' }}</h3>
+                    <button type="button" wire:click="$set('modalDom', false)" class="text-muted hover:text-danger"><span class="material-symbols-outlined">close</span></button>
+                </div>
+
+                <form wire:submit="guardarDomicilio" class="p-5">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-xs font-bold uppercase text-muted">Etiqueta</label>
+                            <input type="text" wire:model="dEtiqueta" list="etiquetas-dom" placeholder="Casa · Negocio · Casa de la hija" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                            <datalist id="etiquetas-dom"><option value="Casa"></option><option value="Negocio"></option><option value="Trabajo"></option><option value="Casa de un familiar"></option><option value="Depósito"></option></datalist>
+                            @error('dEtiqueta') <p class="mt-1 text-xs font-semibold text-danger">{{ $message }}</p> @enderror
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-xs font-bold uppercase text-muted">Uso</label>
+                            <select wire:model="dUso" class="w-full rounded-lg border border-gray-200 px-2 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20">
+                                @foreach (\App\Models\DomicilioCliente::USOS as $k => $lbl)
+                                    <option value="{{ $k }}">{{ $lbl }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="sm:col-span-4">
+                            <label class="mb-1 block text-xs font-bold uppercase text-muted">Dirección</label>
+                            <input type="text" wire:model="dDireccion" placeholder="Calle y número" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                            @error('dDireccion') <p class="mt-1 text-xs font-semibold text-danger">{{ $message }}</p> @enderror
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-xs font-bold uppercase text-muted">Localidad</label>
+                            <input type="text" wire:model="dLocalidad" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-xs font-bold uppercase text-muted">Provincia</label>
+                            <input type="text" wire:model="dProvincia" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                        </div>
+                        <div class="sm:col-span-4">
+                            <label class="mb-1 block text-xs font-bold uppercase text-muted">Referencia (cómo llegar)</label>
+                            <input type="text" wire:model="dReferencia" placeholder="Entre calles, color de la casa, portón…" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-xs font-bold uppercase text-muted">Quién recibe</label>
+                            <input type="text" wire:model="dContacto" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-xs font-bold uppercase text-muted">Teléfono del domicilio</label>
+                            <input type="text" wire:model="dTelefono" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                        </div>
+                        <div class="sm:col-span-4">
+                            <label class="mb-1 block text-xs font-bold uppercase text-muted">Zona de cobranza</label>
+                            <select wire:model="dZonaId" class="w-full rounded-lg border border-gray-200 px-2 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20">
+                                <option value="">— Sin zona —</option>
+                                @foreach ($zonas as $z)
+                                    <option value="{{ $z->id }}">{{ $z->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-xs font-bold uppercase text-muted">Latitud <span class="font-normal normal-case">(opcional)</span></label>
+                            <input type="text" wire:model="dLatitud" placeholder="-29.1622" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                            @error('dLatitud') <p class="mt-1 text-xs font-semibold text-danger">{{ $message }}</p> @enderror
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-xs font-bold uppercase text-muted">Longitud <span class="font-normal normal-case">(opcional)</span></label>
+                            <input type="text" wire:model="dLongitud" placeholder="-67.4966" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                            @error('dLongitud') <p class="mt-1 text-xs font-semibold text-danger">{{ $message }}</p> @enderror
+                        </div>
+                        <div class="sm:col-span-4">
+                            <label class="flex items-center gap-2 text-sm font-semibold text-graphite">
+                                <input type="checkbox" wire:model="dPrincipal" class="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand" />
+                                Domicilio principal <span class="text-xs font-normal text-muted">(se usa por defecto y actualiza la dirección del cliente)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 flex justify-end gap-2 border-t border-gray-100 pt-4">
+                        <button type="button" wire:click="$set('modalDom', false)" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-bold text-graphite hover:bg-gray-50">Cancelar</button>
+                        <button type="submit" class="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-brand-dark">{{ $domId ? 'Guardar cambios' : 'Agregar domicilio' }}</button>
                     </div>
                 </form>
             </div>

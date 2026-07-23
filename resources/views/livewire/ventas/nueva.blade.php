@@ -81,6 +81,33 @@
                             </div>
                         @endif
                     </div>
+
+                    {{-- Domicilio de ENTREGA: el cliente puede tener varios (casa, negocio, casa de un familiar). --}}
+                    <div class="mt-3 rounded-2xl border border-gray-100 bg-white p-3 shadow-soft">
+                        <p class="mb-2 flex items-center gap-1.5 text-sm font-extrabold text-ink">
+                            <span class="material-symbols-outlined text-[18px] text-brand">local_shipping</span> ¿Dónde se entrega?
+                        </p>
+                        @if (! empty($this->domiciliosEntrega))
+                            <div class="space-y-1.5">
+                                @foreach ($this->domiciliosEntrega as $d)
+                                    <label wire:key="dom-e-{{ $d['id'] }}" class="flex cursor-pointer items-start gap-2.5 rounded-xl border p-2.5 transition {{ $domicilioEntregaId === $d['id'] ? 'border-brand bg-brand-soft/40' : 'border-gray-100 hover:border-brand/40' }}">
+                                        <input type="radio" wire:model.live="domicilioEntregaId" value="{{ $d['id'] }}" class="mt-0.5 h-4 w-4 border-gray-300 text-brand focus:ring-brand" />
+                                        <span class="min-w-0">
+                                            <span class="flex flex-wrap items-center gap-1.5 text-sm font-bold text-ink">
+                                                {{ $d['etiqueta'] }}
+                                                @if ($d['principal'])<span class="rounded-full bg-brand-soft px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-brand">Principal</span>@endif
+                                            </span>
+                                            <span class="block text-xs text-graphite">{{ $d['completa'] }}</span>
+                                            @if ($d['referencia'])<span class="block text-[11px] text-muted">{{ $d['referencia'] }}</span>@endif
+                                            @if ($d['contacto'])<span class="block text-[11px] text-muted">Recibe: {{ $d['contacto'] }}</span>@endif
+                                        </span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-xs text-muted">Este cliente no tiene domicilios cargados. Se entrega en la dirección de su ficha; podés cargar los domicilios (casa, negocio, familiar) desde <b>Clientes → ficha → Domicilios</b>.</p>
+                        @endif
+                    </div>
                 @else
                     <div class="relative">
                         <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-muted">person_search</span>
@@ -377,6 +404,18 @@
                     <div class="flex justify-between border-b border-gray-100 pb-2">
                         <span class="text-muted">Cliente</span>
                         <span class="font-bold text-ink">{{ $cliNombre }} <span class="font-normal text-muted">({{ $cliDoc ?: 's/doc' }})</span></span>
+                    </div>
+
+                    @php $domSel = collect($this->domiciliosEntrega)->firstWhere('id', $domicilioEntregaId); @endphp
+                    <div class="flex justify-between border-b border-gray-100 pb-2">
+                        <span class="text-muted">Entregar en</span>
+                        <span class="text-right font-bold text-ink">
+                            @if ($domSel)
+                                {{ $domSel['etiqueta'] }} <span class="block text-xs font-normal text-graphite">{{ $domSel['completa'] }}</span>
+                            @else
+                                <span class="font-normal text-muted">Dirección de la ficha del cliente</span>
+                            @endif
+                        </span>
                     </div>
 
                     <div class="border-b border-gray-100 pb-2">

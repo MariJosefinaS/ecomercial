@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\ChequeCliente;
 use App\Models\Cliente;
 use App\Models\Devolucion;
+use App\Models\DomicilioCliente;
 use App\Models\Local;
 use App\Models\MovimientoCliente;
 use App\Models\Producto;
@@ -51,6 +52,9 @@ class Nueva extends Component
     public string $ncTel = '';
     public string $ncEmail = '';
     public string $ncFechaNac = '';
+
+    /** Domicilio de ENTREGA elegido (de los domicilios del cliente). */
+    public ?int $domicilioEntregaId = null;
 
     // ===== Artículos =====
     /** @var array<int,array{producto_id:?int,cod:string,desc:string,cant:int,precio:string,sugerido:bool}> */
@@ -180,7 +184,7 @@ class Nueva extends Component
     /** Deselecciona el cliente para elegir otro (botón "Cambiar"). */
     public function cambiarCliente(): void
     {
-        $this->reset(['cliId', 'cliNombre', 'cliDoc', 'cliRiesgo', 'cliNuevo', 'altaCliente', 'cliBuscar']);
+        $this->reset(['cliId', 'cliNombre', 'cliDoc', 'cliRiesgo', 'cliNuevo', 'altaCliente', 'cliBuscar', 'domicilioEntregaId']);
         $this->resetValidation('cliId');
     }
 
@@ -197,6 +201,29 @@ class Nueva extends Component
         $this->cliNuevo = ! $c->aprobado;
         $this->cliBuscar = $c->nombre;
         $this->altaCliente = false;
+        // Domicilio de entrega: arranca en el principal del cliente (editable).
+        $this->domicilioEntregaId = $c->domicilios()->activos()->whereIn('uso', ['ambos', 'entrega'])
+            ->orderByDesc('es_principal')->orderBy('id')->value('id');
+    }
+
+    /** Domicilios del cliente donde se puede ENTREGAR (para el selector del wizard). */
+    public function getDomiciliosEntregaProperty(): array
+    {
+        if (! $this->cliId) {
+            return [];
+        }
+
+        return DomicilioCliente::where('cliente_id', $this->cliId)->activos()
+            ->whereIn('uso', ['ambos', 'entrega'])
+            ->orderByDesc('es_principal')->orderBy('etiqueta')->get()
+            ->map(fn (DomicilioCliente $d) => [
+                'id' => $d->id,
+                'etiqueta' => $d->etiqueta,
+                'completa' => $d->completa(),
+                'referencia' => $d->referencia,
+                'contacto' => $d->contacto,
+                'principal' => $d->es_principal,
+            ])->all();
     }
 
     /**
@@ -344,6 +371,7 @@ class Nueva extends Component
         $this->cliNuevo = true;
         $this->cliBuscar = $c->nombre;
         $this->altaCliente = false;
+        $this->domicilioEntregaId = null;   // cliente recién creado: sus domicilios se cargan en la ficha
     }
 
     // ===================================================================
@@ -549,6 +577,7 @@ class Nueva extends Component
                 'local_id' => $this->localId(),
                 'vendedor_id' => auth()->id(),
                 'cliente_id' => $this->cliId,
+                'domicilio_entrega_id' => $this->domicilioEntregaId ?: null,
                 'cliente_nombre' => $this->cliNombre,
                 'medio_pago' => $esCredito ? ($plan['modalidad'] === 'semanal' ? 'Pago semanal' : 'Pago diario') : $this->medioAnticipo,
                 'credito' => $esCredito,

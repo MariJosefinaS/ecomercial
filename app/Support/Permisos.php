@@ -115,6 +115,7 @@ class Permisos
             'tesoreria.cobros' => 'registrar_pago',
             'tesoreria.empleados' => 'pagar_empleados',
             'tesoreria.autorizaciones' => 'ver_tesoreria',
+            'tesoreria.cheques' => 'ver_tesoreria',
             'devoluciones' => 'ver_devoluciones',
             'reportes' => 'ver_reportes',
             'usuarios' => 'ver_usuarios',

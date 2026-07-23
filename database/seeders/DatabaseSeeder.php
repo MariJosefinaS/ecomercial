@@ -12,6 +12,7 @@ use App\Models\CompraItem;
 use App\Models\ConceptoPrecio;
 use App\Models\Cuota;
 use App\Models\Devolucion;
+use App\Models\DomicilioCliente;
 use App\Models\Local;
 use App\Models\MovimientoCaja;
 use App\Models\MovimientoCliente;
@@ -112,6 +113,13 @@ class DatabaseSeeder extends Seeder
         $obras = Cliente::create(['nombre' => 'Obras del Norte', 'tipo_doc' => 'CUIT', 'documento' => '30-55555555-5', 'telefono' => '380-4222-333', 'limite_credito' => 100000, 'riesgo' => 'medio', 'aprobado' => true]);
         $andina = Cliente::create(['nombre' => 'Constructora Andina', 'tipo_doc' => 'CUIT', 'documento' => '30-66666666-6', 'telefono' => '380-4333-444', 'limite_credito' => 80000, 'riesgo' => 'alto', 'aprobado' => true]);
         $aika = Cliente::create(['nombre' => 'Distribuidora Aika', 'tipo_doc' => 'CUIL', 'documento' => '20-77777777-7', 'limite_credito' => 30000, 'riesgo' => 'bajo', 'aprobado' => true]);
+
+        // ===== Domicilios múltiples (casa · negocio · familiar) =====
+        DomicilioCliente::create(['cliente_id' => $roble->id, 'etiqueta' => 'Negocio', 'direccion' => 'Av. San Nicolás 450', 'localidad' => 'La Rioja', 'provincia' => 'La Rioja', 'referencia' => 'Frente a la plaza, cortina verde', 'contacto' => 'Marta (encargada)', 'telefono' => '380-4111-222', 'zona_id' => $zRiojaEste->id, 'latitud' => -29.4131, 'longitud' => -66.8558, 'uso' => 'ambos', 'es_principal' => true]);
+        DomicilioCliente::create(['cliente_id' => $roble->id, 'etiqueta' => 'Depósito', 'direccion' => 'Ruta 5 Km 3, Parque Industrial', 'localidad' => 'La Rioja', 'provincia' => 'La Rioja', 'referencia' => 'Portón azul, entregar de 8 a 12', 'uso' => 'entrega', 'zona_id' => $zRiojaEste->id]);
+        DomicilioCliente::create(['cliente_id' => $andina->id, 'etiqueta' => 'Casa', 'direccion' => 'Belgrano 1240', 'localidad' => 'Chilecito', 'provincia' => 'La Rioja', 'referencia' => 'Casa de rejas negras, entre Sarmiento y Mitre', 'contacto' => 'Sra. Pérez', 'uso' => 'ambos', 'es_principal' => true]);
+        DomicilioCliente::create(['cliente_id' => $andina->id, 'etiqueta' => 'Casa de la hija', 'direccion' => 'Los Álamos 87', 'localidad' => 'Chilecito', 'provincia' => 'La Rioja', 'referencia' => 'Cobrar acá los sábados', 'contacto' => 'Julieta', 'uso' => 'cobro']);
+        DomicilioCliente::create(['cliente_id' => $obras->id, 'etiqueta' => 'Obra en curso', 'direccion' => 'Rivadavia 2100', 'localidad' => 'La Rioja', 'provincia' => 'La Rioja', 'referencia' => 'Preguntar por el capataz', 'uso' => 'entrega', 'es_principal' => true]);
 
         // Cuenta corriente de clientes (debe/haber)
         MovimientoCliente::create(['cliente_id' => $roble->id, 'tipo' => 'debe', 'concepto' => 'Venta FAC-1041 (Cuenta corriente)', 'monto' => 2350, 'fecha' => $hoy->copy()->subDays(8), 'referencia' => 'FAC-1041']);

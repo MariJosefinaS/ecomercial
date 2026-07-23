@@ -50,6 +50,8 @@ class Index extends Component
     public bool $modalEntrega = false;
     public ?int $entregaVentaId = null;
     public ?string $entregaNumero = null;
+    /** Domicilio de entrega elegido en la nota de pedido (para que el repartidor sepa a dónde ir). */
+    public array $entregaDomicilio = [];
     public array $entCodigos = [];      // [{producto_id, desc, codigo}]
 
     // ===== Modal rechazo (motivo obligatorio) =====
@@ -495,12 +497,24 @@ class Index extends Component
     public function entregar(int $id): void
     {
         $this->autorizar('entregar_venta');
-        $venta = Venta::with('items.producto')->find($id);
+        $venta = Venta::with('items.producto', 'domicilioEntrega', 'cliente:id,nombre,direccion,telefono')->find($id);
         if (! $venta || $venta->estado !== 'aprobada' || $venta->entregado_at) {
             return;
         }
         $this->entregaVentaId = $venta->id;
         $this->entregaNumero = $venta->numero;
+
+        // A dónde entregar: el domicilio elegido en la nota de pedido; si no hay, la dirección de la ficha.
+        $dom = $venta->domicilioEntrega;
+        $this->entregaDomicilio = [
+            'etiqueta' => $dom?->etiqueta ?? 'Dirección del cliente',
+            'direccion' => $dom?->completa() ?: ($venta->cliente?->direccion ?: ''),
+            'referencia' => $dom?->referencia,
+            'contacto' => $dom?->contacto,
+            'telefono' => $dom?->telefono ?: ($venta->cliente?->telefono ?: ''),
+            'maps' => $dom?->mapsUrl(),
+        ];
+
         $this->entCodigos = [];
         foreach ($venta->items as $it) {
             for ($k = 0; $k < (int) $it->cantidad; $k++) {

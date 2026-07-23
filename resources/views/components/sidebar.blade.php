@@ -49,8 +49,7 @@
             ['route' => 'tesoreria.empleados', 'label' => 'Pago a empleados', 'icon' => 'badge', 'perm' => 'pagar_empleados'],
             ['route' => 'tesoreria.autorizaciones', 'label' => 'Autorización de pagos', 'icon' => 'approval', 'perm' => 'ver_tesoreria'],
             ['sub' => 'caja',       'label' => 'Movimientos de caja', 'icon' => 'payments'],
-            ['sub' => 'depositar',  'label' => 'Cheques a depositar', 'icon' => 'account_balance_wallet'],
-            ['sub' => 'debitar',    'label' => 'Cheques a debitar',   'icon' => 'credit_card'],
+            ['route' => 'tesoreria.cheques', 'label' => 'Cheques (cartera)', 'icon' => 'account_balance_wallet', 'perm' => 'ver_tesoreria'],
             ['sub' => 'proyeccion', 'label' => 'Proyección',          'icon' => 'show_chart'],
         ]],
         ['label' => 'Reportes', 'icon' => 'bar_chart', 'route' => 'reportes', 'perm' => 'ver_reportes', 'default' => 'ranking', 'children' => [

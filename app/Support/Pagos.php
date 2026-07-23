@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\ChequeCliente;
 use App\Models\MovimientoCaja;
 use App\Models\PagoProveedor;
 use App\Models\PedidoPago;
@@ -31,6 +32,7 @@ class Pagos
             'comprobante' => $d['comprobante'] ?? null,
             'banco' => $d['banco'] ?? null,
             'cheque_numero' => $d['cheque_numero'] ?? null,
+            'cheque_cliente_id' => $d['cheque_cliente_id'] ?? null,   // endoso de un cheque de la cartera
             'comentario' => $d['comentario'] ?? null,
             'estado' => $pre ? 'autorizado' : 'pendiente',
             'solicitado_por' => $userId,
@@ -115,6 +117,22 @@ class Pagos
         $ob->save();
 
         $fac = $ob->compra?->factura_numero ?: ($ob->compra?->numero ?? '');
+
+        // ENDOSO de un cheque de terceros: sale de la cartera y cancela la deuda,
+        // pero NO mueve la caja (ese cheque nunca ingresó a caja; solo lo haría al depositarse).
+        if ($p->cheque_cliente_id) {
+            $ch = ChequeCliente::find($p->cheque_cliente_id);
+            if ($ch && $ch->estado === 'pendiente') {
+                $ch->update([
+                    'estado' => 'endosado',
+                    'endosado_a_proveedor_id' => $ob->proveedor_id,
+                    'endosado_at' => now(),
+                ]);
+            }
+
+            return 'PagoProveedor:' . $ob->id . '|Endoso:' . $p->cheque_cliente_id;
+        }
+
         MovimientoCaja::create([
             'tipo' => 'egreso', 'medio' => PedidoPago::MEDIOS[$p->medio] ?? ucfirst($p->medio),
             'concepto' => 'Pago a proveedor ' . ($ob->proveedor?->nombre ?? '') . ($fac ? " · Factura {$fac}" : ''),

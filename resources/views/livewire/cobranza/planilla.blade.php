@@ -125,7 +125,11 @@
                             <tr class="border-t border-gray-100 {{ $r['cobrada'] ? 'bg-green-50/40' : '' }}" wire:key="cuota-{{ $r['id'] }}">
                                 <td class="px-4 py-2.5">
                                     <p class="font-bold text-ink">{{ $r['cliente'] }}</p>
-                                    <p class="text-[11px] text-muted">{{ $r['domicilio'] ?: '—' }} @if ($r['telefono']) · {{ $r['telefono'] }} @endif</p>
+                                    <p class="text-[11px] text-muted">
+                                        @if ($r['domicilio_etiqueta'])<b class="text-graphite">{{ $r['domicilio_etiqueta'] }}:</b> @endif{{ $r['domicilio'] ?: '—' }} @if ($r['telefono']) · {{ $r['telefono'] }} @endif
+                                        @if ($r['maps'])<a href="{{ $r['maps'] }}" target="_blank" rel="noopener" class="ml-1 font-bold text-brand hover:underline">mapa</a>@endif
+                                    </p>
+                                    @if ($r['referencia'])<p class="text-[11px] italic text-muted">{{ $r['referencia'] }}</p>@endif
                                 </td>
                                 <td class="px-4 py-2.5"><p class="font-semibold text-graphite">{{ $r['credito'] }}</p><p class="text-[11px] text-muted">{{ $r['plan'] }}</p></td>
                                 <td class="px-4 py-2.5 text-center tabular">#{{ $r['numero'] }}<p class="text-[11px] text-muted">{{ $r['vence'] }}</p></td>
@@ -160,7 +164,14 @@
                         <div class="flex items-start justify-between gap-2">
                             <div class="min-w-0">
                                 <p class="truncate font-bold text-ink">{{ $r['cliente'] }}</p>
-                                <p class="truncate text-[11px] text-muted">{{ $r['domicilio'] ?: '—' }}@if ($r['telefono']) · {{ $r['telefono'] }}@endif</p>
+                                <p class="text-[11px] text-muted">
+                                    @if ($r['domicilio_etiqueta'])<b class="text-graphite">{{ $r['domicilio_etiqueta'] }}:</b> @endif{{ $r['domicilio'] ?: '—' }}
+                                </p>
+                                @if ($r['referencia'])<p class="text-[11px] italic text-muted">{{ $r['referencia'] }}</p>@endif
+                                <p class="mt-0.5 flex flex-wrap items-center gap-2 text-[11px]">
+                                    @if ($r['telefono'])<a href="tel:{{ $r['telefono'] }}" class="font-bold text-brand">{{ $r['telefono'] }}</a>@endif
+                                    @if ($r['maps'])<a href="{{ $r['maps'] }}" target="_blank" rel="noopener" class="inline-flex items-center gap-0.5 font-bold text-brand"><span class="material-symbols-outlined text-[14px]">map</span> Cómo llegar</a>@endif
+                                </p>
                             </div>
                             <div class="flex shrink-0 items-center gap-1.5">
                                 <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-graphite">#{{ $r['numero'] }}</span>
