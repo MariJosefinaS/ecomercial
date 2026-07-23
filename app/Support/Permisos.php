@@ -112,6 +112,7 @@ class Permisos
             'cobranza' => 'supervisar_cobranza',   // tablero de supervisión (vive en Tesorería)
             'cobranza.planilla' => 'ver_cobranza', // planilla del cobrador
             'tesoreria' => 'ver_tesoreria',
+            'tesoreria.cobros' => 'registrar_pago',
             'tesoreria.empleados' => 'pagar_empleados',
             'tesoreria.autorizaciones' => 'ver_tesoreria',
             'devoluciones' => 'ver_devoluciones',

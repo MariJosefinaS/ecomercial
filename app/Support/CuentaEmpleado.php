@@ -155,12 +155,15 @@ class CuentaEmpleado
             ->update(['estado' => 'rechazado', 'aprobado_por' => $superId, 'aprobado_at' => now(), 'motivo_rechazo' => $motivo ?: null]);
     }
 
-    /** Resumen de empleados (cobradores) con su saldo a favor, para la sección de Tesorería. */
+    /** Resumen de empleados con su saldo a favor, para la sección de Tesorería (todos los activos, no solo cobradores). */
     public static function empleadosConSaldo()
     {
-        return User::whereHas('zonasComoCobrador')->orderBy('name')->get()
+        return User::where('activo', true)->orderBy('name')->get()
             ->map(fn (User $u) => [
-                'id' => $u->id, 'name' => $u->name,
+                'id' => $u->id,
+                'name' => $u->name,
+                'rol' => \App\Support\Permisos::rolesNombres()[$u->rol] ?? $u->rol,
+                'es_cobrador' => $u->esCobrador(),
                 'saldo' => self::saldo($u->id),
                 'devengado' => self::totalDevengado($u->id),
                 'pagado' => self::totalPagado($u->id),

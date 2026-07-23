@@ -45,6 +45,7 @@
         ['label' => 'Tesorería', 'icon' => 'account_balance', 'route' => 'tesoreria', 'perm' => 'ver_tesoreria', 'default' => 'resumen', 'children' => [
             ['sub' => 'resumen',    'label' => 'Resumen',             'icon' => 'dashboard'],
             ['route' => 'cobranza', 'label' => 'Cobranza (supervisión)', 'icon' => 'request_quote', 'perm' => 'supervisar_cobranza'],
+            ['route' => 'tesoreria.cobros', 'label' => 'Cobros y rendición', 'icon' => 'receipt_long', 'perm' => 'registrar_pago'],
             ['route' => 'tesoreria.empleados', 'label' => 'Pago a empleados', 'icon' => 'badge', 'perm' => 'pagar_empleados'],
             ['route' => 'tesoreria.autorizaciones', 'label' => 'Autorización de pagos', 'icon' => 'approval', 'perm' => 'ver_tesoreria'],
             ['sub' => 'caja',       'label' => 'Movimientos de caja', 'icon' => 'payments'],

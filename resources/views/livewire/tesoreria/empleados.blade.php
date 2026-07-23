@@ -67,13 +67,13 @@
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {{-- Lista de empleados --}}
-        <x-panel title="Cobradores" class="lg:col-span-1">
+        <x-panel title="Empleados" class="lg:col-span-1">
             <div class="divide-y divide-gray-100">
                 @forelse ($empleados as $e)
                     <button type="button" wire:click="seleccionar({{ $e['id'] }})" class="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition hover:bg-gray-50 {{ $sel && $sel->id === $e['id'] ? 'bg-brand-soft/40' : '' }}">
                         <span class="min-w-0">
-                            <span class="block truncate text-sm font-bold text-ink">{{ $e['name'] }}</span>
-                            <span class="block text-[11px] text-muted">Devengado {{ $money($e['devengado']) }} · Pagado {{ $money($e['pagado']) }}</span>
+                            <span class="block truncate text-sm font-bold text-ink">{{ $e['name'] }} <span class="ml-1 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-graphite">{{ $e['rol'] }}</span></span>
+                            <span class="block text-[11px] text-muted">{{ $e['es_cobrador'] ? 'Devengado ' . $money($e['devengado']) . ' · ' : '' }}Pagado {{ $money($e['pagado']) }}</span>
                         </span>
                         <span class="shrink-0 text-right">
                             <span class="tabular block text-sm font-extrabold {{ $e['saldo'] > 0 ? 'text-green-600' : ($e['saldo'] < 0 ? 'text-red-600' : 'text-graphite') }}">{{ $money($e['saldo']) }}</span>
@@ -81,7 +81,7 @@
                         </span>
                     </button>
                 @empty
-                    <p class="px-4 py-8 text-center text-sm text-muted">No hay cobradores (usuarios con zona). Asigná zonas en Configuración.</p>
+                    <p class="px-4 py-8 text-center text-sm text-muted">No hay empleados activos.</p>
                 @endforelse
             </div>
         </x-panel>
