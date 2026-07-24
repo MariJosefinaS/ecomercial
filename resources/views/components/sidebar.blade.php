@@ -17,6 +17,7 @@
             ['sub' => 'consulta', 'label' => 'Consulta de stock', 'icon' => 'search'],
             ['sub' => 'catalogo', 'label' => 'Catálogo',          'icon' => 'inventory_2', 'perm' => 'gestionar_stock'],
             ['route' => 'stock.reposicion', 'label' => 'Reposición (EOQ)', 'icon' => 'all_inbox', 'perm' => 'gestionar_stock'],
+            ['route' => 'stock.valorizado', 'label' => 'Stock valorizado', 'icon' => 'paid', 'perm' => 'gestionar_stock'],
         ]],
         ['label' => 'Ventas', 'icon' => 'point_of_sale', 'route' => 'ventas', 'perm' => 'ver_ventas', 'default' => 'mis', 'children' => [
             ['sub' => 'mis',   'label' => 'Mis ventas',        'icon' => 'receipt_long'],
@@ -52,6 +53,13 @@
             ['route' => 'tesoreria.cheques', 'label' => 'Cheques (cartera)', 'icon' => 'account_balance_wallet', 'perm' => 'ver_tesoreria'],
             ['sub' => 'proyeccion', 'label' => 'Proyección',          'icon' => 'show_chart'],
         ]],
+        ['label' => 'Comprobantes', 'icon' => 'receipt_long', 'route' => 'comprobantes', 'perm' => 'ver_comprobantes', 'default' => 'todos', 'children' => [
+            ['sub' => 'todos',        'label' => 'Todos',             'icon' => 'list'],
+            ['sub' => 'factura',      'label' => 'Facturas',          'icon' => 'description'],
+            ['sub' => 'nota_credito', 'label' => 'Notas de crédito',  'icon' => 'undo'],
+            ['sub' => 'recibo',       'label' => 'Recibos',           'icon' => 'receipt'],
+            ['sub' => 'orden_pago',   'label' => 'Órdenes de pago',   'icon' => 'payments'],
+        ]],
         ['label' => 'Reportes', 'icon' => 'bar_chart', 'route' => 'reportes', 'perm' => 'ver_reportes', 'default' => 'ranking', 'children' => [
             ['sub' => 'ranking',    'label' => 'Ranking de vendedores', 'icon' => 'leaderboard'],
             ['sub' => 'locales',    'label' => 'Ventas por local',      'icon' => 'store'],
@@ -78,7 +86,9 @@
     $curSub = request('sub');
 @endphp
 
-<aside class="fixed left-0 top-0 z-50 flex h-screen w-64 transform flex-col bg-anthracite text-gray-300 transition-transform duration-200 lg:!translate-x-0"
+{{-- h-dvh (no h-screen): en mobile 100vh queda detrás de la barra del navegador y el
+     pie con "Cerrar sesión" cae fuera de la pantalla; el viewport dinámico lo evita. --}}
+<aside class="fixed left-0 top-0 z-50 flex h-dvh w-64 transform flex-col bg-anthracite text-gray-300 transition-transform duration-200 lg:!translate-x-0"
        :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'">
     {{-- Logo (recreación vectorial del Manual de Marca) --}}
     <div class="px-6 py-6">

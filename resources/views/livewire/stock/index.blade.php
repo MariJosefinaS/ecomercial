@@ -44,9 +44,22 @@
                             </div>
                         </div>
 
-                        @if ($productoConsulta['img'])
-                            <img src="{{ $productoConsulta['img'] }}" loading="lazy" alt="{{ $productoConsulta['nom'] }}"
-                                 class="mt-3 max-h-64 w-full rounded-xl border border-gray-100 object-contain bg-gray-50" />
+                        @if (! empty($productoConsulta['galeria']))
+                            <div x-data="{ activa: '{{ $productoConsulta['galeria'][0] }}' }" class="mt-3">
+                                <img :src="activa" loading="lazy" alt="{{ $productoConsulta['nom'] }}"
+                                     class="max-h-64 w-full rounded-xl border border-gray-100 object-contain bg-gray-50" />
+                                @if (count($productoConsulta['galeria']) > 1)
+                                    <div class="mt-2 flex flex-wrap gap-2">
+                                        @foreach ($productoConsulta['galeria'] as $foto)
+                                            <button type="button" @click="activa = '{{ $foto }}'"
+                                                    class="h-14 w-14 overflow-hidden rounded-lg border-2 transition"
+                                                    :class="activa === '{{ $foto }}' ? 'border-brand' : 'border-gray-200 hover:border-brand/50'">
+                                                <img src="{{ $foto }}" loading="lazy" class="h-full w-full object-cover" alt="" />
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
                         @endif
 
                         @if ($productoConsulta['desc'])
@@ -435,28 +448,50 @@
                         </div>
 
                         <div class="mt-4">
-                            <p class="mb-2 text-xs font-bold uppercase tracking-wide text-muted">Imagen del producto</p>
-                            <div class="flex items-start gap-4">
-                                <div class="flex h-24 w-24 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
-                                    @if ($pImagen)
-                                        <img src="{{ $pImagen->temporaryUrl() }}" class="h-full w-full object-cover" alt="preview" />
-                                    @elseif ($pImagenActual)
-                                        <img src="{{ asset('storage/' . $pImagenActual) }}" class="h-full w-full object-cover" alt="imagen" />
-                                    @else
-                                        <span class="material-symbols-outlined text-[28px] text-gray-300">image</span>
-                                    @endif
+                            <p class="mb-1 text-xs font-bold uppercase tracking-wide text-muted">Imágenes del producto</p>
+                            <p class="mb-2 text-[11px] text-muted">Podés subir <b>varias a la vez</b>. La primera es la <b>portada</b> (la que se ve en el catálogo); tocá una guardada para hacerla portada. JPG, PNG o WEBP, hasta 2&nbsp;MB cada una.</p>
+
+                            @php($totalImgs = count($pImagenesActuales) + count($pImagenesNuevas))
+
+                            {{-- Galería: guardadas + recién subidas --}}
+                            @if ($totalImgs > 0)
+                                <div class="mb-3 flex flex-wrap gap-2">
+                                    @foreach ($pImagenesActuales as $i => $ruta)
+                                        <div wire:key="img-act-{{ $i }}-{{ $ruta }}" class="group relative h-24 w-24 overflow-hidden rounded-xl border-2 {{ $i === 0 ? 'border-brand' : 'border-gray-200' }} bg-gray-50">
+                                            <img src="{{ asset('storage/' . $ruta) }}" class="h-full w-full object-cover" alt="imagen {{ $i + 1 }}" />
+                                            @if ($i === 0)
+                                                <span class="absolute left-1 top-1 rounded bg-brand px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-white">Portada</span>
+                                            @else
+                                                <button type="button" wire:click="hacerPortada({{ $i }})" title="Hacer portada"
+                                                        class="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[9px] font-bold text-white opacity-0 transition group-hover:opacity-100">Portada</button>
+                                            @endif
+                                            <button type="button" wire:click="quitarImagenActual({{ $i }})" title="Quitar"
+                                                    class="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition group-hover:opacity-100">
+                                                <span class="material-symbols-outlined text-[14px]">close</span>
+                                            </button>
+                                        </div>
+                                    @endforeach
+
+                                    @foreach ($pImagenesNuevas as $i => $img)
+                                        <div wire:key="img-new-{{ $i }}" class="group relative h-24 w-24 overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-blue-50">
+                                            <img src="{{ $img->temporaryUrl() }}" class="h-full w-full object-cover" alt="nueva {{ $i + 1 }}" />
+                                            <span class="absolute left-1 top-1 rounded bg-blue-500 px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-white">Nueva</span>
+                                            <button type="button" wire:click="quitarImagenNueva({{ $i }})" title="Quitar"
+                                                    class="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition group-hover:opacity-100">
+                                                <span class="material-symbols-outlined text-[14px]">close</span>
+                                            </button>
+                                        </div>
+                                    @endforeach
                                 </div>
-                                <div class="flex-1">
-                                    <input type="file" wire:model="pImagen" accept="image/*"
-                                           class="block w-full text-sm text-graphite file:mr-3 file:rounded-lg file:border-0 file:bg-brand-soft file:px-3 file:py-2 file:text-sm file:font-bold file:text-brand hover:file:bg-brand-soft/70" />
-                                    <div wire:loading wire:target="pImagen" class="mt-1 text-xs text-muted">Subiendo…</div>
-                                    @error('pImagen') <p class="mt-1 text-xs font-semibold text-danger">{{ $message }}</p> @enderror
-                                    @if ($pImagen || $pImagenActual)
-                                        <button type="button" wire:click="quitarImagen" class="mt-2 text-xs font-semibold text-danger hover:underline">Quitar imagen</button>
-                                    @endif
-                                    <p class="mt-1 text-[11px] text-muted">JPG, PNG o WEBP, hasta 2&nbsp;MB.</p>
-                                </div>
-                            </div>
+                            @endif
+
+                            <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm font-bold text-graphite transition hover:border-brand hover:text-brand">
+                                <span class="material-symbols-outlined text-[20px]">add_photo_alternate</span>
+                                {{ $totalImgs > 0 ? 'Agregar más imágenes' : 'Subir imágenes' }}
+                                <input type="file" wire:model="pImagenesNuevas" accept="image/*" multiple class="hidden" />
+                            </label>
+                            <div wire:loading wire:target="pImagenesNuevas" class="mt-1 text-xs text-muted">Subiendo…</div>
+                            @error('pImagenesNuevas.*') <p class="mt-1 text-xs font-semibold text-danger">{{ $message }}</p> @enderror
                         </div>
 
                         <div class="mt-4">

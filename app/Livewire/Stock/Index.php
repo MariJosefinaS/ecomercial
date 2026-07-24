@@ -52,9 +52,11 @@ class Index extends Component
     public array $pConceptos = [];        // conceptos [id, nombre, ambito, aplica, porcentaje, orden] (costo + venta)
     public ?int $conceptoAgregar = null;  // concepto elegido en el selector "agregar concepto"
 
-    // ===== Imagen + ficha del producto (cargados a mano) =====
-    public $pImagen = null;               // archivo nuevo (temporal)
-    public ?string $pImagenActual = null; // ruta de la imagen ya guardada
+    // ===== Imágenes + ficha del producto (cargados a mano) =====
+    /** @var array<int,\Livewire\Features\SupportFileUploads\TemporaryUploadedFile> nuevas a subir */
+    public array $pImagenesNuevas = [];
+    /** @var array<int,string> rutas ya guardadas (la primera es la portada) */
+    public array $pImagenesActuales = [];
     public string $pDescripcion = '';
     public array $pDetalles = [];         // [['clave','valor'], ...]
 
@@ -174,7 +176,7 @@ class Index extends Component
     {
         $this->autorizar('gestionar_stock');
         $this->editando = null;
-        $this->reset(['pNombre', 'pCodigo', 'pProveedorId', 'pPrecioCompra', 'pConceptos', 'conceptoAgregar', 'pSugeridos', 'sugBuscar', 'pSugReciproco', 'pImagen', 'pImagenActual', 'pDescripcion', 'pDetalles']);
+        $this->reset(['pNombre', 'pCodigo', 'pProveedorId', 'pPrecioCompra', 'pConceptos', 'conceptoAgregar', 'pSugeridos', 'sugBuscar', 'pSugReciproco', 'pImagenesNuevas', 'pImagenesActuales', 'pDescripcion', 'pDetalles']);
         $this->pCategoriaId = Categoria::orderBy('nombre')->value('id');
         $this->pMin = '5';
         $this->pStock = [];
@@ -212,8 +214,8 @@ class Index extends Component
         $this->pMin = (string) $min;
         $this->pConceptos = ! empty($p->conceptos) ? $p->conceptos : $this->conceptosDe($p->proveedor_id);
         $this->conceptoAgregar = null;
-        $this->pImagen = null;
-        $this->pImagenActual = $p->imagen;
+        $this->pImagenesNuevas = [];
+        $this->pImagenesActuales = $p->imagenesGaleria();
         $this->pDescripcion = $p->descripcion ?? '';
         $this->pDetalles = $p->detalles ?: [];
         $this->pSugeridos = $p->sugeridos()->get(['productos.id', 'nombre', 'codigo'])
@@ -268,11 +270,37 @@ class Index extends Component
         $this->pDetalles = array_values($this->pDetalles);
     }
 
-    /** Quita la imagen ya guardada (al guardar quedará sin imagen). */
-    public function quitarImagen(): void
+    /** Valida cada imagen a medida que se van agregando (feedback inmediato). */
+    public function updatedPImagenesNuevas(): void
     {
-        $this->pImagen = null;
-        $this->pImagenActual = null;
+        $this->validate([
+            'pImagenesNuevas.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
+        ], attributes: ['pImagenesNuevas.*' => 'imagen']);
+    }
+
+    /** Quita una imagen ya guardada de la galería. */
+    public function quitarImagenActual(int $i): void
+    {
+        unset($this->pImagenesActuales[$i]);
+        $this->pImagenesActuales = array_values($this->pImagenesActuales);
+    }
+
+    /** Quita una imagen recién subida (todavía sin guardar). */
+    public function quitarImagenNueva(int $i): void
+    {
+        unset($this->pImagenesNuevas[$i]);
+        $this->pImagenesNuevas = array_values($this->pImagenesNuevas);
+    }
+
+    /** Marca una imagen ya guardada como portada (la mueve al primer lugar). */
+    public function hacerPortada(int $i): void
+    {
+        if (! isset($this->pImagenesActuales[$i])) {
+            return;
+        }
+        $elegida = $this->pImagenesActuales[$i];
+        $resto = array_values(array_filter($this->pImagenesActuales, fn ($x) => $x !== $elegida));
+        $this->pImagenesActuales = array_merge([$elegida], $resto);
     }
 
     public function guardarProducto(): void
@@ -286,10 +314,11 @@ class Index extends Component
             'pPrecioCompra' => 'required|numeric|min:0',
             'pMin' => 'numeric|min:0',
             'pConceptos.*.porcentaje' => 'numeric|min:0',
-            'pImagen' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'pImagenesNuevas' => 'nullable|array|max:12',
+            'pImagenesNuevas.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
             'pDescripcion' => 'nullable|string|max:1000',
         ], attributes: [
-            'pImagen' => 'imagen', 'pDescripcion' => 'descripción',
+            'pImagenesNuevas.*' => 'imagen', 'pDescripcion' => 'descripción',
             'pNombre' => 'nombre', 'pCodigo' => 'código', 'pCategoriaId' => 'categoría',
             'pProveedorId' => 'proveedor', 'pPrecioCompra' => 'precio neto',
         ]);
@@ -316,10 +345,14 @@ class Index extends Component
             $p->precio_compra = $costo;
             $p->conceptos = array_values($this->pConceptos);
 
-            // Imagen: subir la nueva si la hay; si no, conservar/limpiar la actual.
-            $p->imagen = $this->pImagen
-                ? $this->pImagen->store('productos', 'public')
-                : $this->pImagenActual;
+            // Galería: sube las nuevas, las suma a las que quedaron, y la portada es la primera.
+            $nuevas = [];
+            foreach ($this->pImagenesNuevas as $img) {
+                $nuevas[] = $img->store('productos', 'public');
+            }
+            $galeria = array_values(array_unique(array_merge($this->pImagenesActuales, $nuevas)));
+            $p->imagenes = $galeria ?: null;
+            $p->imagen = $galeria[0] ?? null;   // portada = primera (compatibilidad con lo existente)
 
             // Descripción + mini-ficha de detalles (filtra filas vacías; null si no hay nada).
             $p->descripcion = trim($this->pDescripcion) ?: null;
@@ -396,6 +429,7 @@ class Index extends Component
             'nom' => $p->nombre,
             'icon' => $p->categoria?->icono ?? 'inventory_2',
             'img' => $p->imagenUrl(),
+            'galeria' => $p->imagenesUrls(),
             'la' => $a?->nombre ?? 'Local A',
             'lb' => $b?->nombre ?? 'Local B',
             'sa' => $slA?->cantidad ?? 0,
@@ -446,19 +480,11 @@ class Index extends Component
         }
         $localId = auth()->user()?->local_id ?? Local::where('activo', true)->orderBy('id')->value('id');
         $min = $p->stock->firstWhere('local_id', $localId)?->stock_minimo ?? 1;
-        $maxNum = (int) (SolicitudCompra::selectRaw("MAX(CAST(REGEXP_REPLACE(numero, '[^0-9]', '') AS UNSIGNED)) as n")->value('n') ?? 76);
 
-        SolicitudCompra::create([
-            'numero' => 'SOL-' . ($maxNum + 1),
-            'producto_id' => $p->id,
-            'local_id' => $localId,
-            'solicitante_id' => auth()->id(),
-            'cantidad' => max(1, (int) $min),
-            'estado' => 'pendiente',
-            'nota' => 'Solicitud desde consulta de stock',
-        ]);
+        // Fuente única del alta de solicitudes (comparte numeración y proveedor con el EOQ).
+        \App\Support\Reposicion::solicitar($p, $localId, max(1, (int) $min), auth()->id(), 'Solicitud desde consulta de stock');
 
-        $this->consultaMsg = "Solicitud de reposición enviada al administrador ({$cod}).";
+        $this->consultaMsg = "Solicitud de reposición enviada al administrador ({$cod}). La aprueban en Compras → Solicitudes.";
     }
 
     public function render()

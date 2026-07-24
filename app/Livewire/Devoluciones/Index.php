@@ -143,16 +143,19 @@ class Index extends Component
         DB::transaction(function () use ($dev, &$efectos) {
             $monto = '$' . number_format((float) $dev->monto, 2, ',', '.');
 
-            // 1) Nota de crédito en la cuenta del cliente (haber)
+            // 1) NOTA DE CRÉDITO formal + su haber en la cuenta del cliente
+            $nc = \App\Support\Comprobantes::notaCreditoDeDevolucion($dev);
             MovimientoCliente::create([
                 'cliente_id' => $dev->cliente_id,
                 'tipo' => 'haber',
                 'concepto' => 'Nota de crédito por devolución' . ($dev->venta ? " ({$dev->venta->numero})" : ''),
                 'monto' => $dev->monto,
                 'fecha' => now(),
+                'fecha_vencimiento' => now(),
                 'referencia' => $dev->venta?->numero,
+                'comprobante_id' => $nc?->id,
             ]);
-            $efectos[] = "Nota de crédito {$monto} en la cuenta de {$dev->cliente?->nombre} (haber).";
+            $efectos[] = 'Nota de crédito ' . ($nc ? $nc->etiqueta() . ' por ' : '') . "{$monto} en la cuenta de {$dev->cliente?->nombre} (haber).";
 
             // 2) Seguimiento + stock según condición
             $seg = self::SEGUIMIENTO[$dev->condicion] ?? 'reingresado';

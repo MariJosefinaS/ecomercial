@@ -55,51 +55,73 @@ class Notifications extends Component
             || Permisos::puede($u->rol, 'aprobar_traspasos');
     }
 
-    /** Aprobaciones pendientes reales (ventas + compras + solicitudes en estado 'pendiente'). */
-    public function aprobacionesPendientes(): array
+    /**
+     * Aprobaciones pendientes — SÓLO las que el usuario puede resolver por su permiso.
+     * Antes se le mostraba TODO a cualquier aprobador (una solicitud de reposición
+     * aparecía hasta en perfiles que no aprueban compras, sin que pudieran hacer nada).
+     * Ahora cada categoría se gatea por su permiso específico.
+     */
+    public function aprobacionesPendientes(User $u): array
     {
-        $ventas = Venta::with(['vendedor:id,name'])->withCount('items')->where('estado', 'pendiente')->orderByDesc('id')->get()
-            ->map(fn (Venta $v) => [
-                'ts' => $v->updated_at?->timestamp ?? 0,
-                'tipo' => 'Venta', 'id' => $v->numero, 'icon' => 'point_of_sale', 'vv' => 'brand',
-                'desc' => ($v->cliente_nombre ?: 'Venta') . ' · ' . $v->items_count . ' ítem(s)',
-                'sub' => 'Solicita ' . ($v->vendedor?->name ?? '—'),
-                'monto' => $this->fmt($v->total),
-                'url' => route('ventas', ['highlight' => $v->numero]),
-            ]);
+        $items = collect();
 
-        $compras = Compra::with(['proveedor:id,nombre', 'usuario:id,name'])->where('estado', 'pendiente')->orderByDesc('id')->get()
-            ->map(fn (Compra $c) => [
-                'ts' => $c->updated_at?->timestamp ?? 0,
-                'tipo' => 'Compra', 'id' => $c->numero, 'icon' => 'shopping_cart', 'vv' => 'blue',
-                'desc' => 'Orden de compra · ' . ($c->proveedor?->nombre ?? '—'),
-                'sub' => 'Solicita ' . ($c->usuario?->name ?? '—'),
-                'monto' => $this->fmt($c->total),
-                'url' => route('compras', ['highlight' => $c->numero]),
-            ]);
+        // Ventas → sólo quien aprueba ventas.
+        if (Permisos::puede($u->rol, 'aprobar_ventas')) {
+            $items = $items->concat(
+                Venta::with(['vendedor:id,name'])->withCount('items')->where('estado', 'pendiente')->orderByDesc('id')->get()
+                    ->map(fn (Venta $v) => [
+                        'ts' => $v->updated_at?->timestamp ?? 0,
+                        'tipo' => 'Venta', 'id' => $v->numero, 'icon' => 'point_of_sale', 'vv' => 'brand',
+                        'desc' => ($v->cliente_nombre ?: 'Venta') . ' · ' . $v->items_count . ' ítem(s)',
+                        'sub' => 'Solicita ' . ($v->vendedor?->name ?? '—'),
+                        'monto' => $this->fmt($v->total),
+                        'url' => route('ventas', ['highlight' => $v->numero]),
+                    ])
+            );
+        }
 
-        $solicitudes = SolicitudCompra::with(['producto:id,nombre', 'solicitante:id,name'])->where('estado', 'pendiente')->orderByDesc('id')->get()
-            ->map(fn (SolicitudCompra $s) => [
-                'ts' => $s->updated_at?->timestamp ?? 0,
-                'tipo' => 'Solicitud', 'id' => $s->numero, 'icon' => 'inventory_2', 'vv' => 'gray',
-                'desc' => 'Reposición · ' . ($s->producto?->nombre ?? '—') . ' (x' . $s->cantidad . ')',
-                'sub' => 'Solicita ' . ($s->solicitante?->name ?? '—'),
-                'monto' => '',
-                'url' => route('compras'),
-            ]);
+        // Compras (órdenes) + solicitudes de reposición → sólo quien aprueba compras.
+        if (Permisos::puede($u->rol, 'aprobar_compras')) {
+            $items = $items->concat(
+                Compra::with(['proveedor:id,nombre', 'usuario:id,name'])->where('estado', 'pendiente')->orderByDesc('id')->get()
+                    ->map(fn (Compra $c) => [
+                        'ts' => $c->updated_at?->timestamp ?? 0,
+                        'tipo' => 'Compra', 'id' => $c->numero, 'icon' => 'shopping_cart', 'vv' => 'blue',
+                        'desc' => 'Orden de compra · ' . ($c->proveedor?->nombre ?? '—'),
+                        'sub' => 'Solicita ' . ($c->usuario?->name ?? '—'),
+                        'monto' => $this->fmt($c->total),
+                        'url' => route('compras', ['highlight' => $c->numero]),
+                    ])
+            )->concat(
+                SolicitudCompra::with(['producto:id,nombre', 'solicitante:id,name'])->where('estado', 'pendiente')->orderByDesc('id')->get()
+                    ->map(fn (SolicitudCompra $s) => [
+                        'ts' => $s->updated_at?->timestamp ?? 0,
+                        'tipo' => 'Solicitud', 'id' => $s->numero, 'icon' => 'inventory_2', 'vv' => 'gray',
+                        'desc' => 'Reposición · ' . ($s->producto?->nombre ?? '—') . ' (x' . $s->cantidad . ')',
+                        'sub' => 'Solicita ' . ($s->solicitante?->name ?? '—'),
+                        'monto' => '',
+                        'url' => route('compras', ['sub' => 'solicitudes']),
+                    ])
+            );
+        }
 
-        $traspasos = Traspaso::with(['origen:id,nombre', 'destino:id,nombre', 'usuario:id,name'])->withCount('items')
-            ->where('estado', 'pendiente')->orderByDesc('id')->get()
-            ->map(fn (Traspaso $t) => [
-                'ts' => $t->updated_at?->timestamp ?? 0,
-                'tipo' => 'Traspaso', 'id' => $t->numero, 'icon' => 'swap_horiz', 'vv' => 'blue',
-                'desc' => 'Traspaso · ' . ($t->origen?->nombre ?? '—') . ' → ' . ($t->destino?->nombre ?? '—') . ' (' . $t->items_count . ' caja/s)',
-                'sub' => 'Solicita ' . ($t->usuario?->name ?? '—'),
-                'monto' => '',
-                'url' => route('traspasos', ['highlight' => $t->numero]),
-            ]);
+        // Traspasos → sólo quien aprueba traspasos.
+        if (Permisos::puede($u->rol, 'aprobar_traspasos')) {
+            $items = $items->concat(
+                Traspaso::with(['origen:id,nombre', 'destino:id,nombre', 'usuario:id,name'])->withCount('items')
+                    ->where('estado', 'pendiente')->orderByDesc('id')->get()
+                    ->map(fn (Traspaso $t) => [
+                        'ts' => $t->updated_at?->timestamp ?? 0,
+                        'tipo' => 'Traspaso', 'id' => $t->numero, 'icon' => 'swap_horiz', 'vv' => 'blue',
+                        'desc' => 'Traspaso · ' . ($t->origen?->nombre ?? '—') . ' → ' . ($t->destino?->nombre ?? '—') . ' (' . $t->items_count . ' caja/s)',
+                        'sub' => 'Solicita ' . ($t->usuario?->name ?? '—'),
+                        'monto' => '',
+                        'url' => route('traspasos', ['highlight' => $t->numero]),
+                    ])
+            );
+        }
 
-        return $ventas->concat($compras)->concat($solicitudes)->concat($traspasos)->all();
+        return $items->all();
     }
 
     /** ¿Es encargado de depósito? (recepciona pero no aprueba). */
@@ -182,14 +204,17 @@ class Notifications extends Component
                 ];
             });
 
+        // Sólo estados RESUELTOS: una solicitud recién creada ("pendiente") no es una
+        // novedad para quien la pidió — no deriva en ninguna acción suya.
         $estadosSol = [
-            'pendiente' => ['Reposición pendiente de aprobación', 'hourglass_top', 'gray'],
             'aprobada' => ['Tu reposición fue aprobada', 'check_circle', 'green'],
+            'convertida' => ['Tu reposición ya está en una orden de compra', 'shopping_cart_checkout', 'green'],
             'rechazada' => ['Tu reposición fue rechazada', 'cancel', 'red'],
         ];
 
-        $solicitudes = SolicitudCompra::with('producto:id,nombre')
+        $solicitudes = SolicitudCompra::with('producto:id,nombre', 'compra:id,numero')
             ->where('solicitante_id', $u->id)
+            ->whereIn('estado', ['aprobada', 'convertida', 'rechazada'])
             ->where('updated_at', '>=', $desde)
             ->orderByDesc('updated_at')->limit(20)->get()
             ->map(function (SolicitudCompra $s) use ($estadosSol) {
@@ -200,7 +225,10 @@ class Notifications extends Component
                     'tipo' => 'Solicitud', 'id' => $s->numero,
                     'icon' => $icon, 'vv' => $vv,
                     'desc' => $label,
-                    'sub' => ($s->producto?->nombre ?? '—') . ' (x' . $s->cantidad . ') · ' . ($s->updated_at?->diffForHumans() ?? ''),
+                    'sub' => ($s->producto?->nombre ?? '—') . ' (x' . $s->cantidad . ')'
+                        . ($s->compra ? ' · ' . $s->compra->numero : '')
+                        . ($s->motivo_rechazo ? ' · ' . $s->motivo_rechazo : '')
+                        . ' · ' . ($s->updated_at?->diffForHumans() ?? ''),
                     'monto' => '',
                     'url' => null,
                 ];
@@ -233,7 +261,7 @@ class Notifications extends Component
         }
 
         $todos = $aprobador
-            ? $this->aprobacionesPendientes()
+            ? $this->aprobacionesPendientes($u)
             : ($u ? $this->misNovedades($u) : []);
 
         // Sólo lo NO leído: ítems con timestamp posterior a la última visita.

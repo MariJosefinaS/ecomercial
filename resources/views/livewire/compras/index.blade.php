@@ -21,11 +21,149 @@
     @endif
 
     {{-- Stats --}}
-    <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <x-kpi-card variant="white" title="Pendientes" :value="$stats['pendientes']" icon="pending_actions" subtitle="A aprobar" />
         <x-kpi-card variant="blue"  title="Por Recibir" :value="$stats['por_recibir']" icon="local_shipping" subtitle="Aprobadas" />
         <x-kpi-card variant="brand" title="Total Recibido" :value="'$' . number_format($stats['total_recibido'], 0, ',', '.')" icon="inventory" />
+        <x-kpi-card variant="{{ $stats['solicitudes_pendientes'] > 0 ? 'red' : 'beige' }}" title="Solicitudes"
+                    :value="$stats['solicitudes_pendientes']" icon="playlist_add"
+                    :subtitle="$stats['solicitudes_a_convertir'] > 0 ? $stats['solicitudes_a_convertir'] . ' aprobada(s) a convertir' : 'De reposición, a resolver'" />
     </div>
+
+    {{-- Tabs: órdenes de compra vs solicitudes de reposición --}}
+    <div class="flex flex-wrap items-center gap-1 border-b border-gray-200">
+        @foreach (['ordenes' => 'Órdenes de compra', 'solicitudes' => 'Solicitudes de reposición'] as $t => $lbl)
+            <button type="button" wire:click="setTab('{{ $t }}')" class="-mb-px border-b-2 px-4 py-3 text-sm font-bold transition {{ $tab === $t ? 'border-brand text-brand' : 'border-transparent text-graphite hover:text-brand' }}">
+                {{ $lbl }}
+                @if ($t === 'solicitudes' && $stats['solicitudes_pendientes'] > 0)
+                    <span class="ml-1 rounded-full bg-danger px-1.5 py-0.5 text-[10px] font-extrabold text-white">{{ $stats['solicitudes_pendientes'] }}</span>
+                @endif
+            </button>
+        @endforeach
+    </div>
+
+    {{-- ================= SOLICITUDES DE REPOSICIÓN ================= --}}
+    @if ($tab === 'solicitudes')
+        <x-panel title="Solicitudes de reposición">
+            <x-slot:actions>
+                <span class="text-xs font-semibold text-muted">{{ count($solicitudes) }} resultado(s)</span>
+            </x-slot:actions>
+
+            <p class="border-b border-gray-100 px-5 pb-3 pt-4 text-xs text-muted">
+                El circuito completo: <b>solicitud</b> (la pide un vendedor o la sugiere el EOQ) →
+                <b>aprobación</b> → <b>orden de compra</b> (se agrupa por proveedor) →
+                <b>recepción</b> de la mercadería → stock.
+            </p>
+
+            <div class="flex flex-wrap items-center gap-3 border-b border-gray-100 px-5 py-3">
+                <div class="flex overflow-hidden rounded-lg border border-gray-200 text-sm font-bold">
+                    @foreach (['pendiente' => 'Pendientes', 'aprobada' => 'Aprobadas', 'convertida' => 'En orden', 'rechazada' => 'Rechazadas', 'todos' => 'Todas'] as $val => $lbl)
+                        <button type="button" wire:click="$set('solEstado', '{{ $val }}')"
+                                class="px-3 py-2 transition {{ $solEstado === $val ? 'bg-brand text-white' : 'text-graphite hover:bg-gray-50' }}">{{ $lbl }}</button>
+                    @endforeach
+                </div>
+                @puede('aprobar_compras')
+                    @if ($stats['solicitudes_a_convertir'] > 0)
+                        <button type="button" wire:click="seleccionarTodas" class="rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold text-graphite hover:bg-gray-50">Tildar todas las aprobadas</button>
+                        <button type="button" wire:click="convertirSeleccionadas" class="flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-2 text-sm font-bold text-white transition hover:bg-brand-dark">
+                            <span class="material-symbols-outlined text-[18px]">shopping_cart_checkout</span> Generar orden de compra
+                        </button>
+                    @endif
+                @endpuede
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead><tr class="text-[11px] uppercase tracking-wide text-muted">
+                        <th class="px-5 py-3 font-bold"></th>
+                        <th class="px-5 py-3 font-bold">Solicitud</th>
+                        <th class="px-5 py-3 font-bold">Producto</th>
+                        <th class="px-5 py-3 font-bold">Proveedor</th>
+                        <th class="px-5 py-3 text-right font-bold">Cant.</th>
+                        <th class="px-5 py-3 text-right font-bold">Costo est.</th>
+                        <th class="px-5 py-3 font-bold">Estado</th>
+                        <th class="px-5 py-3 text-right font-bold">Acciones</th>
+                    </tr></thead>
+                    <tbody class="tabular">
+                        @forelse ($solicitudes as $s)
+                            @php
+                                $estCls = match ($s['estado']) {
+                                    'aprobada' => 'bg-blue-100 text-blue-700',
+                                    'convertida' => 'bg-green-100 text-green-700',
+                                    'rechazada' => 'bg-red-100 text-red-700',
+                                    default => 'bg-amber-100 text-amber-700',
+                                };
+                            @endphp
+                            <tr class="border-t border-gray-100 {{ $s['sin_proveedor'] && $s['estado'] !== 'rechazada' ? 'bg-amber-50/60' : '' }}" wire:key="sol-{{ $s['id'] }}">
+                                <td class="px-5 py-3">
+                                    @if ($s['convertible'])
+                                        <input type="checkbox" wire:model.live="solSel.{{ $s['id'] }}" class="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand" />
+                                    @endif
+                                </td>
+                                <td class="px-5 py-3">
+                                    <p class="font-bold text-ink">{{ $s['numero'] }}</p>
+                                    <p class="text-[11px] text-muted">{{ $s['fecha'] }} · {{ $s['solicitante'] }} · {{ $s['local'] }}</p>
+                                </td>
+                                <td class="px-5 py-3">
+                                    <p class="font-semibold text-ink">{{ $s['producto'] }}</p>
+                                    <p class="text-[11px] text-muted">{{ $s['codigo'] }}@if ($s['nota']) · {{ $s['nota'] }}@endif</p>
+                                </td>
+                                <td class="px-5 py-3">
+                                    @if ($s['proveedor'])
+                                        <span class="text-graphite">{{ $s['proveedor'] }}</span>
+                                    @else
+                                        <span class="text-xs font-bold text-amber-700">Sin proveedor — no se puede convertir</span>
+                                    @endif
+                                </td>
+                                <td class="px-5 py-3 text-right font-bold text-ink">{{ $s['cantidad'] }}</td>
+                                <td class="px-5 py-3 text-right text-graphite">${{ number_format($s['costo_estimado'], 2, ',', '.') }}</td>
+                                <td class="px-5 py-3">
+                                    <span class="inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase {{ $estCls }}">{{ $s['estado_label'] }}</span>
+                                    @if ($s['compra'])
+                                        <span class="mt-0.5 block text-[11px] text-muted">{{ $s['compra'] }} ({{ $s['compra_estado'] }})</span>
+                                    @endif
+                                    @if ($s['motivo'])
+                                        <span class="mt-0.5 block text-[11px] text-red-600">{{ $s['motivo'] }}</span>
+                                    @endif
+                                </td>
+                                <td class="px-5 py-3 text-right">
+                                    @puede('aprobar_compras')
+                                        <div class="flex flex-wrap justify-end gap-1.5">
+                                            @if ($s['estado'] === 'pendiente')
+                                                <button type="button" wire:click="aprobarSolicitud({{ $s['id'] }})" class="rounded-lg bg-success px-3 py-1.5 text-xs font-bold text-white hover:brightness-95">Aprobar</button>
+                                                <button type="button" wire:click="pedirRechazoSolicitud({{ $s['id'] }})" class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-bold text-graphite hover:bg-gray-50">Rechazar</button>
+                                            @elseif (in_array($s['estado'], ['aprobada', 'rechazada'], true))
+                                                <button type="button" wire:click="reabrirSolicitud({{ $s['id'] }})" class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-bold text-graphite hover:bg-gray-50">Volver a pendiente</button>
+                                            @endif
+                                        </div>
+                                    @endpuede
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="8" class="px-5 py-10 text-center text-sm text-muted">No hay solicitudes con este filtro.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </x-panel>
+
+        {{-- Modal: rechazar solicitud --}}
+        @if ($solRechazandoId)
+            <div class="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+                <div class="absolute inset-0 bg-black/50" wire:click="$set('solRechazandoId', null)"></div>
+                <div class="relative z-10 my-auto w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+                    <h3 class="mb-1 text-base font-extrabold text-ink">Rechazar solicitud</h3>
+                    <p class="mb-3 text-xs text-muted">Quien la pidió lo ve en sus novedades.</p>
+                    <label class="mb-1 block text-xs font-bold uppercase text-muted">Motivo</label>
+                    <input type="text" wire:model="solMotivo" placeholder="Hay stock suficiente" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                    <div class="mt-4 flex justify-end gap-2">
+                        <button type="button" wire:click="$set('solRechazandoId', null)" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-bold text-graphite hover:bg-gray-50">Cancelar</button>
+                        <button type="button" wire:click="rechazarSolicitud" class="rounded-lg bg-danger px-4 py-2 text-sm font-bold text-white hover:brightness-95">Rechazar</button>
+                    </div>
+                </div>
+            </div>
+        @endif
+    @else
 
     {{-- Tabla + filtros --}}
     <x-panel title="Listado de compras">
@@ -129,6 +267,7 @@
             </table>
         </div>
     </x-panel>
+    @endif {{-- fin del tab "ordenes" --}}
 
     {{-- ===== Modal registrar compra ===== --}}
     @if ($modal)

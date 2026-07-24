@@ -50,6 +50,12 @@ class Index extends Component
     public string $nuevoRol = '';
     public int $stockMinimo = 5;
 
+    /** Parámetros fiscales (condición de la empresa, punto de venta, IVA, plazo cta cte). */
+    public string $fiscCondicion = 'responsable_inscripto';
+    public string $fiscPuntoVenta = '1';
+    public string $fiscIvaPct = '21';
+    public string $fiscPlazoCtaCte = '30';
+
     /** Conceptos de precio (Flete, Remarcar, …) configurables, con su ámbito (costo|venta). */
     public array $conceptos = [];
     public string $nuevoConceptoNombre = '';
@@ -100,6 +106,37 @@ class Index extends Component
         $this->cargarCategorias();
         $this->cargarZonas();
         $this->cargarComisiones();
+        $this->cargarFiscal();
+    }
+
+    // ===== Parámetros fiscales (módulo de comprobantes) =====
+    private function cargarFiscal(): void
+    {
+        $this->fiscCondicion = \App\Support\Comprobantes::condicionEmpresa();
+        $this->fiscPuntoVenta = (string) \App\Support\Comprobantes::puntoVenta();
+        $this->fiscIvaPct = (string) \App\Support\Comprobantes::ivaPct();
+        $this->fiscPlazoCtaCte = (string) \App\Support\Comprobantes::plazoCtaCte();
+    }
+
+    public function guardarFiscal(): void
+    {
+        $this->autorizar('gestionar_roles');   // configuración sensible: la toca quien administra
+        $this->validate([
+            'fiscCondicion' => 'required|in:responsable_inscripto,monotributo,consumidor_final,exento',
+            'fiscPuntoVenta' => 'required|integer|min:1|max:9999',
+            'fiscIvaPct' => 'required|numeric|min:0|max:100',
+            'fiscPlazoCtaCte' => 'required|integer|min:0|max:365',
+        ], attributes: [
+            'fiscCondicion' => 'condición de IVA', 'fiscPuntoVenta' => 'punto de venta',
+            'fiscIvaPct' => 'alícuota de IVA', 'fiscPlazoCtaCte' => 'plazo de cuenta corriente',
+        ]);
+
+        \App\Models\Parametro::set('condicion_iva_empresa', $this->fiscCondicion);
+        \App\Models\Parametro::set('punto_venta', (int) $this->fiscPuntoVenta);
+        \App\Models\Parametro::set('iva_pct_venta', (float) $this->fiscIvaPct);
+        \App\Models\Parametro::set('plazo_cta_cte_dias', (int) $this->fiscPlazoCtaCte);
+
+        $this->mensaje = 'Parámetros fiscales guardados. Se aplican a los comprobantes que se emitan de acá en adelante.';
     }
 
     private function esSuper(): bool

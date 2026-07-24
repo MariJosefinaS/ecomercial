@@ -102,25 +102,101 @@
         {{-- Tabs de la ficha --}}
         <x-panel>
             <div class="flex items-center gap-1 border-b border-gray-100 px-3">
-                @foreach (['cuenta' => 'Cuenta corriente', 'creditos' => 'Créditos', 'cuotas' => 'Cuotas', 'domicilios' => 'Domicilios', 'compras' => 'Compras', 'pagos' => 'Pagos', 'cheques' => 'Cheques', 'devoluciones' => 'Devoluciones'] as $t => $lbl)
+                @foreach (['cuenta' => 'Cuenta corriente', 'comprobantes' => 'Comprobantes', 'creditos' => 'Créditos', 'cuotas' => 'Cuotas', 'domicilios' => 'Domicilios', 'compras' => 'Compras', 'pagos' => 'Pagos', 'cheques' => 'Cheques', 'devoluciones' => 'Devoluciones'] as $t => $lbl)
                     <button wire:click="setTab('{{ $t }}')" class="-mb-px border-b-2 px-4 py-3 text-sm font-bold transition {{ $tab === $t ? 'border-brand text-brand' : 'border-transparent text-graphite hover:text-brand' }}">{{ $lbl }}</button>
                 @endforeach
             </div>
 
             @if ($tab === 'cuenta')
+                {{-- Totales fiscales: Saldo Vencido · A Vencer · Total (pedido del cliente) --}}
+                <div class="grid grid-cols-1 gap-3 border-b border-gray-100 p-5 sm:grid-cols-3">
+                    <div class="rounded-xl border-2 {{ $cliente['cta']['vencido'] > 0 ? 'border-red-200 bg-red-50' : 'border-gray-100' }} p-4">
+                        <p class="text-xs font-bold uppercase {{ $cliente['cta']['vencido'] > 0 ? 'text-red-700' : 'text-muted' }}">Saldo vencido</p>
+                        <p class="tabular mt-1 text-2xl font-extrabold {{ $cliente['cta']['vencido'] > 0 ? 'text-red-700' : 'text-ink' }}">${{ number_format($cliente['cta']['vencido'], 2, ',', '.') }}</p>
+                        @if ($cliente['cta']['mora'] > 0)
+                            <p class="mt-0.5 text-xs font-semibold text-red-600">+ ${{ number_format($cliente['cta']['mora'], 2, ',', '.') }} de mora acumulada</p>
+                        @endif
+                    </div>
+                    <div class="rounded-xl border border-gray-100 p-4">
+                        <p class="text-xs font-bold uppercase text-muted">A vencer</p>
+                        <p class="tabular mt-1 text-2xl font-extrabold text-ink">${{ number_format($cliente['cta']['a_vencer'], 2, ',', '.') }}</p>
+                        <p class="mt-0.5 text-xs text-muted">Todavía en término</p>
+                    </div>
+                    <div class="rounded-xl border border-gray-100 bg-anthracite p-4 text-white">
+                        <p class="text-xs font-bold uppercase text-white/70">Saldo total</p>
+                        <p class="tabular mt-1 text-2xl font-extrabold">${{ number_format($cliente['cta']['saldo'], 2, ',', '.') }}</p>
+                        @if ($cliente['cta']['a_favor'] > 0)
+                            <p class="mt-0.5 text-xs text-white/70">${{ number_format($cliente['cta']['a_favor'], 2, ',', '.') }} a favor del cliente</p>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 border-b border-gray-100 px-5 py-3">
+                    <span class="text-xs font-bold uppercase text-muted">Consultar por</span>
+                    <select wire:model.live="ctaPorFecha" class="rounded-lg border border-gray-200 px-2 py-1.5 text-sm outline-none focus:border-brand">
+                        <option value="carga">Fecha de carga</option>
+                        <option value="vencimiento">Fecha de vencimiento</option>
+                    </select>
+                    <span class="text-xs text-muted">Condición de IVA: <b class="text-graphite">{{ $cliente['tipo_iva_label'] }}</b> → se le emite <b class="text-brand">Factura {{ $cliente['letra'] }}</b></span>
+                </div>
+
                 <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
-                    <thead><tr class="text-[11px] uppercase tracking-wide text-muted"><th class="px-5 py-3 font-bold">Fecha</th><th class="px-5 py-3 font-bold">Concepto</th><th class="px-5 py-3 text-right font-bold">Debe</th><th class="px-5 py-3 text-right font-bold">Haber</th></tr></thead>
+                    <thead><tr class="text-[11px] uppercase tracking-wide text-muted">
+                        <th class="px-5 py-3 font-bold">F. Carga</th>
+                        <th class="px-5 py-3 font-bold">Comprobante</th>
+                        <th class="px-5 py-3 font-bold">Concepto</th>
+                        <th class="px-5 py-3 text-right font-bold">Debe</th>
+                        <th class="px-5 py-3 text-right font-bold">Haber</th>
+                        <th class="px-5 py-3 text-right font-bold">Saldo</th>
+                        <th class="px-5 py-3 font-bold">Vto.</th>
+                    </tr></thead>
                     <tbody class="tabular">
-                        @foreach ($cliente['movimientos'] as $m)
-                            <tr class="border-t border-gray-100">
+                        @forelse ($cliente['movimientos'] as $m)
+                            <tr class="border-t border-gray-100 {{ $m['vencido'] ? 'bg-red-50/50' : '' }}">
                                 <td class="px-5 py-3 text-graphite">{{ $m['fecha'] }}</td>
+                                <td class="px-5 py-3">
+                                    @if ($m['comprobante_id'])
+                                        <a href="{{ route('comprobantes.pdf', $m['comprobante_id']) }}" target="_blank" class="font-semibold text-brand hover:underline">{{ $m['comprobante'] }}</a>
+                                    @else
+                                        <span class="text-muted">{{ $m['comprobante'] }}</span>
+                                    @endif
+                                </td>
                                 <td class="px-5 py-3 font-semibold text-ink">{{ $m['concepto'] }}</td>
-                                <td class="px-5 py-3 text-right {{ $m['tipo'] === 'debe' ? 'font-bold text-danger' : 'text-gray-300' }}">{{ $m['tipo'] === 'debe' ? '$' . number_format($m['monto'], 2, ',', '.') : '—' }}</td>
-                                <td class="px-5 py-3 text-right {{ $m['tipo'] === 'haber' ? 'font-bold text-success' : 'text-gray-300' }}">{{ $m['tipo'] === 'haber' ? '$' . number_format($m['monto'], 2, ',', '.') : '—' }}</td>
+                                <td class="px-5 py-3 text-right {{ $m['debe'] !== null ? 'font-bold text-danger' : 'text-gray-300' }}">{{ $m['debe'] !== null ? '$' . number_format($m['debe'], 2, ',', '.') : '—' }}</td>
+                                <td class="px-5 py-3 text-right {{ $m['haber'] !== null ? 'font-bold text-success' : 'text-gray-300' }}">{{ $m['haber'] !== null ? '$' . number_format($m['haber'], 2, ',', '.') : '—' }}</td>
+                                <td class="px-5 py-3 text-right font-semibold text-graphite">${{ number_format($m['saldo'], 2, ',', '.') }}</td>
+                                <td class="px-5 py-3 text-xs {{ $m['vencido'] ? 'font-bold text-red-700' : 'text-muted' }}">{{ $m['vencimiento'] ?? '—' }}@if ($m['vencido']) <span class="block text-[10px]">VENCIDO</span>@endif</td>
                             </tr>
-                        @endforeach
-                        <tr class="border-t-2 border-gray-200 bg-gray-50"><td colspan="3" class="px-5 py-3 text-right font-bold uppercase text-muted">Saldo</td><td class="px-5 py-3 text-right text-base font-extrabold text-ink">${{ number_format($cliente['saldo'], 2, ',', '.') }}</td></tr>
+                        @empty
+                            <tr><td colspan="7" class="px-5 py-8 text-center text-sm text-muted">Sin movimientos en la cuenta.</td></tr>
+                        @endforelse
+                        <tr class="border-t-2 border-gray-200 bg-gray-50"><td colspan="5" class="px-5 py-3 text-right font-bold uppercase text-muted">Saldo</td><td class="px-5 py-3 text-right text-base font-extrabold text-ink">${{ number_format($cliente['cta']['saldo'], 2, ',', '.') }}</td><td></td></tr>
+                    </tbody>
+                </table>
+                </div>
+
+            @elseif ($tab === 'comprobantes')
+                <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead><tr class="text-[11px] uppercase tracking-wide text-muted">
+                        <th class="px-5 py-3 font-bold">Comprobante</th><th class="px-5 py-3 font-bold">Fecha</th><th class="px-5 py-3 font-bold">Concepto</th>
+                        <th class="px-5 py-3 text-right font-bold">Neto</th><th class="px-5 py-3 text-right font-bold">IVA</th><th class="px-5 py-3 text-right font-bold">Total</th><th class="px-5 py-3"></th>
+                    </tr></thead>
+                    <tbody class="tabular">
+                        @forelse ($cliente['comprobantes'] as $x)
+                            <tr class="border-t border-gray-100 {{ $x['anulado'] ? 'opacity-50' : '' }}">
+                                <td class="px-5 py-3 font-bold text-ink">{{ $x['etiqueta'] }}@if ($x['anulado']) <span class="ml-1 rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-bold uppercase text-graphite">anulado</span>@endif</td>
+                                <td class="px-5 py-3 text-graphite">{{ $x['fecha'] }}@if ($x['venc'])<span class="block text-[11px] text-muted">vto. {{ $x['venc'] }}</span>@endif</td>
+                                <td class="px-5 py-3 text-graphite">{{ $x['concepto'] }}</td>
+                                <td class="px-5 py-3 text-right text-graphite">${{ number_format($x['neto'], 2, ',', '.') }}</td>
+                                <td class="px-5 py-3 text-right text-graphite">${{ number_format($x['iva'], 2, ',', '.') }}</td>
+                                <td class="px-5 py-3 text-right font-extrabold text-ink">${{ number_format($x['total'], 2, ',', '.') }}</td>
+                                <td class="px-5 py-3 text-right"><a href="{{ route('comprobantes.pdf', $x['id']) }}" target="_blank" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-bold text-graphite hover:bg-gray-50"><span class="material-symbols-outlined text-[16px]">picture_as_pdf</span> PDF</a></td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="7" class="px-5 py-8 text-center text-sm text-muted">Sin comprobantes emitidos.</td></tr>
+                        @endforelse
                     </tbody>
                 </table>
                 </div>
@@ -520,6 +596,20 @@
                             <select wire:model="fRiesgo" class="w-full rounded-lg border border-gray-200 px-2 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20">
                                 <option value="bajo">Bajo</option><option value="medio">Medio</option><option value="alto">Alto</option>
                             </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-xs font-bold uppercase text-muted">Condición de IVA</label>
+                            <select wire:model.live="fTipoIva" class="w-full rounded-lg border border-gray-200 px-2 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20">
+                                @foreach (\App\Support\Comprobantes::CONDICIONES as $k => $lbl)
+                                    <option value="{{ $k }}">{{ $lbl }}</option>
+                                @endforeach
+                            </select>
+                            <p class="mt-1 text-xs text-muted">Se le emite <b class="text-brand">Factura {{ $fTipoIva === 'responsable_inscripto' ? 'A' : 'B' }}</b></p>
+                            @error('fTipoIva') <p class="mt-1 text-xs font-semibold text-danger">{{ $message }}</p> @enderror
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-xs font-bold uppercase text-muted">Ingresos Brutos <span class="font-normal normal-case">(opcional)</span></label>
+                            <input type="text" wire:model="fIngBrutos" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
                         </div>
                     </div>
 

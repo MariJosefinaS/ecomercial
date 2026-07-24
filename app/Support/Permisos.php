@@ -70,6 +70,10 @@ class Permisos
                 'pagar_empleados' => 'Pagar a empleados / cuenta del cobrador',
                 'autorizar_pagos' => 'Autorizar / rechazar pedidos de pago',
             ],
+            'Comprobantes' => [
+                'ver_comprobantes' => 'Ver comprobantes (facturas, recibos, OP)',
+                'emitir_comprobantes' => 'Emitir / anular comprobantes',
+            ],
             'Reportes' => [
                 'ver_reportes' => 'Ver reportes',
             ],
@@ -104,6 +108,7 @@ class Permisos
             'recepcion' => 'ver_recepcion',
             'stock' => 'ver_stock',
             'stock.reposicion' => 'gestionar_stock',
+            'stock.valorizado' => 'gestionar_stock',
             'ventas' => 'ver_ventas',
             'compras' => 'ver_compras',
             'traspasos' => 'ver_traspasos',
@@ -116,6 +121,7 @@ class Permisos
             'tesoreria.empleados' => 'pagar_empleados',
             'tesoreria.autorizaciones' => 'ver_tesoreria',
             'tesoreria.cheques' => 'ver_tesoreria',
+            'comprobantes' => 'ver_comprobantes',
             'devoluciones' => 'ver_devoluciones',
             'reportes' => 'ver_reportes',
             'usuarios' => 'ver_usuarios',

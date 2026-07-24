@@ -62,18 +62,11 @@ class Reposicion extends Component
             return;
         }
         $localId = auth()->user()?->local_id ?? Local::where('activo', true)->orderBy('id')->value('id');
-        $maxNum = (int) (SolicitudCompra::selectRaw("MAX(CAST(REGEXP_REPLACE(numero, '[^0-9]', '') AS UNSIGNED)) as n")->value('n') ?? 76);
 
-        SolicitudCompra::create([
-            'numero' => 'SOL-' . ($maxNum + 1),
-            'producto_id' => $p->id,
-            'local_id' => $localId,
-            'solicitante_id' => auth()->id(),
-            'cantidad' => $cantidad,
-            'estado' => 'pendiente',
-            'nota' => "Reposición sugerida por EOQ ({$cantidad} u.)",
-        ]);
-        $this->mensaje = "Solicitud de reposición creada para «{$p->nombre}» ({$cantidad} u.).";
+        // Fuente única del alta de solicitudes (comparte numeración y proveedor con Stock).
+        \App\Support\Reposicion::solicitar($p, $localId, $cantidad, auth()->id(), "Reposición sugerida por EOQ ({$cantidad} u.)");
+
+        $this->mensaje = "Solicitud creada para «{$p->nombre}» ({$cantidad} u.). Se aprueba en Compras → Solicitudes y de ahí sale la orden de compra.";
     }
 
     /** Fecha desde la que se considera el histórico de ventas. */

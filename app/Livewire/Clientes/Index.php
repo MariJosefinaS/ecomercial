@@ -5,6 +5,7 @@ namespace App\Livewire\Clientes;
 use App\Livewire\Concerns\AutorizaPermisos;
 use App\Models\Cliente;
 use App\Models\ChequeCliente;
+use App\Models\Comprobante;
 use App\Models\Cuota;
 use App\Models\Devolucion;
 use App\Models\DomicilioCliente;
@@ -12,6 +13,8 @@ use App\Models\MovimientoCliente;
 use App\Models\Venta;
 use App\Models\Zona;
 use App\Support\Cobranza;
+use App\Support\Comprobantes;
+use App\Support\CuentaCorriente;
 use Illuminate\Support\Carbon;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -29,6 +32,9 @@ class Index extends Component
     public string $tab = 'cuenta';
     public ?string $mensaje = null;
 
+    /** Cuenta corriente: consultar por fecha de carga o de vencimiento (como GENESIS). */
+    public string $ctaPorFecha = 'carga';
+
     // ===== Modal alta / edición =====
     public bool $modal = false;
     public ?int $editId = null;
@@ -40,6 +46,8 @@ class Index extends Component
     public string $fDir = '';
     public string $fLimite = '0';
     public string $fRiesgo = 'bajo';
+    public string $fTipoIva = 'consumidor_final';
+    public string $fIngBrutos = '';
 
     // ===== Modal domicilios (múltiples por cliente) =====
     public bool $modalDom = false;
@@ -83,8 +91,27 @@ class Index extends Component
     {
         $base = $this->aArray($c);
 
-        $base['movimientos'] = MovimientoCliente::where('cliente_id', $c->id)->orderBy('fecha')->orderBy('id')->get()
-            ->map(fn ($m) => ['fecha' => $m->fecha?->format('d/m/Y'), 'tipo' => $m->tipo, 'concepto' => $m->concepto, 'monto' => (float) $m->monto])->all();
+        // Cuenta corriente FISCAL: comprobante + vencimiento + saldo acumulado (grilla estilo GENESIS).
+        $hoyCta = Carbon::today();
+        $base['movimientos'] = CuentaCorriente::movimientos($c->id, $hoyCta, $this->ctaPorFecha);
+        $base['cta'] = CuentaCorriente::resumen($c->id, $hoyCta);
+        $base['tipo_iva'] = $c->tipo_iva;
+        $base['tipo_iva_label'] = Comprobantes::CONDICIONES[$c->tipo_iva] ?? $c->tipo_iva;
+        $base['ingresos_brutos'] = $c->ingresos_brutos;
+        $base['letra'] = Comprobantes::letraPara($c);
+        $base['comprobantes'] = Comprobante::where('cliente_id', $c->id)->orderByDesc('fecha')->orderByDesc('id')->limit(50)->get()
+            ->map(fn (Comprobante $x) => [
+                'id' => $x->id,
+                'etiqueta' => $x->etiqueta(),
+                'tipo' => $x->tipo,
+                'fecha' => $x->fecha?->format('d/m/Y'),
+                'venc' => $x->fecha_vencimiento?->format('d/m/Y'),
+                'concepto' => $x->concepto,
+                'neto' => (float) $x->neto,
+                'iva' => (float) $x->iva,
+                'total' => (float) $x->total,
+                'anulado' => $x->estaAnulado(),
+            ])->all();
 
         // Cronograma de cuotas de crédito + saldo vencido / a vencer / mora (calculados al vuelo).
         $hoy = Carbon::today();
@@ -182,10 +209,11 @@ class Index extends Component
     {
         $this->autorizar('gestionar_clientes');
         $this->editId = null;
-        $this->reset(['fNombre', 'fDoc', 'fTel', 'fEmail', 'fDir']);
+        $this->reset(['fNombre', 'fDoc', 'fTel', 'fEmail', 'fDir', 'fIngBrutos']);
         $this->fTipoDoc = 'CUIT';
         $this->fLimite = '0';
         $this->fRiesgo = 'bajo';
+        $this->fTipoIva = 'consumidor_final';
         $this->resetValidation();
         $this->modal = true;
     }
@@ -206,6 +234,8 @@ class Index extends Component
         $this->fDir = $c->direccion ?? '';
         $this->fLimite = (string) (float) $c->limite_credito;
         $this->fRiesgo = $c->riesgo;
+        $this->fTipoIva = $c->tipo_iva ?: 'consumidor_final';
+        $this->fIngBrutos = $c->ingresos_brutos ?? '';
         $this->resetValidation();
         $this->modal = true;
     }
@@ -219,7 +249,8 @@ class Index extends Component
             'fEmail' => 'nullable|email',
             'fLimite' => 'numeric|min:0',
             'fRiesgo' => 'required|in:bajo,medio,alto',
-        ], attributes: ['fNombre' => 'nombre', 'fTipoDoc' => 'tipo de documento', 'fEmail' => 'email', 'fLimite' => 'límite de crédito']);
+            'fTipoIva' => 'required|in:responsable_inscripto,monotributo,consumidor_final,exento',
+        ], attributes: ['fNombre' => 'nombre', 'fTipoDoc' => 'tipo de documento', 'fEmail' => 'email', 'fLimite' => 'límite de crédito', 'fTipoIva' => 'condición de IVA']);
 
         $attrs = [
             'nombre' => $this->fNombre,
@@ -230,6 +261,8 @@ class Index extends Component
             'direccion' => $this->fDir ?: null,
             'limite_credito' => (float) $this->fLimite,
             'riesgo' => $this->fRiesgo,
+            'tipo_iva' => $this->fTipoIva,
+            'ingresos_brutos' => trim($this->fIngBrutos) ?: null,
         ];
 
         if ($this->editId) {

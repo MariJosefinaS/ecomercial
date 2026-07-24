@@ -21,7 +21,10 @@ $check = function (string $label, bool $ok, string $extra = '') use (&$fail) {
 };
 
 $dueno   = User::where('email', 'dueno@ecomercial.com')->first();
-$marcos  = User::where('name', 'Marcos Lima')->first();      // Rioja Este (20 cuotas diarias)
+// Cobrador de Rioja Este: se resuelve por la ZONA, no por nombre — el cobrador asignado
+// cambia (el usuario reasignó Rioja Este de Marcos a Josefina) y el test debe seguirlo.
+$marcos = \App\Models\Zona::where('nombre', 'like', '%Rioja Este%')->first()?->cobrador
+    ?? User::whereHas('zonasComoCobrador')->first();
 $ricardo = User::where('name', 'Ricardo Mendes')->first();    // Distritos Chilecito (0 cuotas)
 $hoy = \Illuminate\Support\Carbon::today()->toDateString();
 
@@ -71,7 +74,11 @@ try {
     $g0 = collect(Livewire::test(Planilla::class)->viewData('grupos'))->firstWhere('modalidad', 'diario');
     $fila = collect($g0['filas'])->firstWhere('cobrada', false);   // una cuota AÚN no cobrada
     $cobradoAntes = $g0['cobrado'];
-    Livewire::test(Planilla::class)->call('cobrar', $fila['id']);
+    // El cobro pasa por el MODAL (abrirCobro → registrarCobro); `cobrar` ya no existe.
+    Livewire::test(Planilla::class)
+        ->call('abrirCobro', $fila['id'])
+        ->set('cobroMedio', 'efectivo')
+        ->call('registrarCobro');
     $cobradoDespues = collect(Livewire::test(Planilla::class)->viewData('grupos'))->firstWhere('modalidad', 'diario')['cobrado'];
     $check('cobrar aumenta el total cobrado', $cobradoDespues > $cobradoAntes, "antes=$cobradoAntes despues=$cobradoDespues");
 } catch (\Throwable $e) {

@@ -14,6 +14,8 @@ use App\Livewire\Traspasos\Index as TraspasosIndex;
 use App\Livewire\Reportes\Index as ReportesIndex;
 use App\Livewire\Stock\Index as StockIndex;
 use App\Livewire\Stock\Reposicion as StockReposicion;
+use App\Livewire\Stock\Valorizado as StockValorizado;
+use App\Livewire\Comprobantes\Index as ComprobantesIndex;
 use App\Livewire\Tesoreria\Autorizaciones as TesoreriaAutorizaciones;
 use App\Livewire\Tesoreria\Cheques as TesoreriaCheques;
 use App\Livewire\Tesoreria\Cobros as TesoreriaCobros;
@@ -44,6 +46,7 @@ Route::middleware(['auth', 'permiso'])->group(function () {
     Route::get('/perfil', PerfilIndex::class)->name('perfil'); // Mi perfil + estadísticas (accesible a todo rol)
     Route::get('/stock', StockIndex::class)->name('stock');
     Route::get('/stock/reposicion', StockReposicion::class)->name('stock.reposicion'); // Lote óptimo (EOQ)
+    Route::get('/stock/valorizado', StockValorizado::class)->name('stock.valorizado'); // Plata inmovilizada: costo vs venta
     Route::get('/ventas', VentasIndex::class)->name('ventas');
     Route::get('/ventas/nueva', VentasNueva::class)->name('ventas.nueva'); // Nota de pedido (wizard)
     Route::get('/compras', ComprasIndex::class)->name('compras');
@@ -106,6 +109,17 @@ Route::middleware(['auth', 'permiso'])->group(function () {
     Route::get('/tesoreria/empleados', TesoreriaEmpleados::class)->name('tesoreria.empleados'); // Pago a empleados / cuenta del cobrador
     Route::get('/tesoreria/autorizaciones', TesoreriaAutorizaciones::class)->name('tesoreria.autorizaciones'); // Tablero de autorización de pagos
     Route::get('/tesoreria/cheques', TesoreriaCheques::class)->name('tesoreria.cheques'); // Cartera de cheques (propios y de terceros) + calendario
+
+    // ===== Módulo fiscal: libro de comprobantes + PDF =====
+    Route::get('/comprobantes', ComprobantesIndex::class)->name('comprobantes');
+    Route::get('/comprobantes/{comprobante}/pdf', function (\App\Models\Comprobante $comprobante) {
+        abort_unless(\App\Support\Permisos::puede(Auth::user()?->rol, 'ver_comprobantes'), 403);
+        $comprobante->load('cliente', 'proveedor', 'venta.items.producto', 'emisor:id,name');
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('comprobantes.pdf', \App\Support\Comprobantes::datosPdf($comprobante))
+            ->setPaper('a4', 'portrait')
+            ->stream(str_replace(['/', ' '], ['-', '_'], $comprobante->etiqueta()) . '.pdf');
+    })->name('comprobantes.pdf');
     // Recibo de un pago a empleado (PDF firmable). Gated pagar_empleados.
     Route::get('/tesoreria/pago/{pago}/recibo', function (\App\Models\PagoEmpleado $pago) {
         abort_unless(\App\Support\Permisos::puede(Auth::user()?->rol, 'pagar_empleados'), 403);

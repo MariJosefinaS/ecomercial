@@ -8,7 +8,9 @@ use App\Models\CompraItem;
 use App\Models\Local;
 use App\Models\Producto;
 use App\Models\Proveedor;
+use App\Models\SolicitudCompra;
 use App\Models\StockLocal;
+use App\Support\Reposicion;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -21,10 +23,20 @@ class Index extends Component
 {
     use AutorizaPermisos;
 
+    #[Url(as: 'sub')]
+    public string $tab = 'ordenes';    // ordenes | solicitudes
+
     public string $buscar = '';
     public string $estado = 'todos';   // todos | pendiente | aprobada | recibida | rechazada
     public string $local = 'todos';
     public ?string $mensaje = null;
+
+    // ===== Solicitudes de reposición (el paso previo a la orden de compra) =====
+    public string $solEstado = 'pendiente';   // pendiente | aprobada | convertida | rechazada | todos
+    /** @var array<int,bool> */
+    public array $solSel = [];
+    public ?int $solRechazandoId = null;
+    public string $solMotivo = '';
 
     #[Url]
     public ?string $highlight = null;
@@ -207,6 +219,76 @@ class Index extends Component
         $this->mensaje = "Compra {$num} registrada (pendiente de aprobación).";
     }
 
+    public function setTab(string $t): void
+    {
+        $this->tab = $t;
+        $this->solSel = [];
+    }
+
+    // ===================================================================
+    //  Solicitudes de reposición → orden de compra
+    // ===================================================================
+    public function aprobarSolicitud(int $id): void
+    {
+        $this->autorizar('aprobar_compras');
+        $s = SolicitudCompra::find($id);
+        if ($s && Reposicion::aprobar($s, auth()->id())) {
+            $this->mensaje = "Solicitud {$s->numero} aprobada. Ya se puede convertir en orden de compra.";
+        }
+    }
+
+    public function pedirRechazoSolicitud(int $id): void
+    {
+        $this->autorizar('aprobar_compras');
+        $this->solRechazandoId = $id;
+        $this->solMotivo = '';
+    }
+
+    public function rechazarSolicitud(): void
+    {
+        $this->autorizar('aprobar_compras');
+        $s = SolicitudCompra::find($this->solRechazandoId);
+        if ($s && Reposicion::rechazar($s, auth()->id(), $this->solMotivo)) {
+            $this->mensaje = "Solicitud {$s->numero} rechazada.";
+        }
+        $this->reset(['solRechazandoId', 'solMotivo']);
+    }
+
+    public function reabrirSolicitud(int $id): void
+    {
+        $this->autorizar('aprobar_compras');
+        $s = SolicitudCompra::find($id);
+        if ($s && Reposicion::reabrir($s)) {
+            $this->mensaje = "Solicitud {$s->numero} vuelta a pendiente.";
+        }
+    }
+
+    /** Convierte las solicitudes tildadas en órdenes de compra (una por proveedor + sucursal). */
+    public function convertirSeleccionadas(): void
+    {
+        $this->autorizar('aprobar_compras');
+        $ids = array_keys(array_filter($this->solSel));
+        if (empty($ids)) {
+            $this->mensaje = 'Tildá al menos una solicitud aprobada para convertir.';
+
+            return;
+        }
+        $r = Reposicion::convertirEnCompras($ids, auth()->id());
+        $this->solSel = [];
+        $this->mensaje = $r['mensaje'];
+        if ($r['convertidas'] > 0) {
+            $this->tab = 'ordenes';
+            $this->estado = 'pendiente';
+        }
+    }
+
+    /** Tilda de una todas las solicitudes aprobadas que se están mostrando. */
+    public function seleccionarTodas(): void
+    {
+        $this->solSel = SolicitudCompra::where('estado', 'aprobada')->whereNull('compra_id')
+            ->pluck('id')->mapWithKeys(fn ($id) => [$id => true])->all();
+    }
+
     public function aprobar(int $id): void
     {
         $this->autorizar('aprobar_compras');
@@ -315,7 +397,48 @@ class Index extends Component
                 'pendientes' => Compra::where('estado', 'pendiente')->count(),
                 'por_recibir' => Compra::where('estado', 'aprobada')->count(),
                 'total_recibido' => (float) Compra::where('estado', 'recibida')->sum('total'),
+                'solicitudes_pendientes' => SolicitudCompra::where('estado', 'pendiente')->count(),
+                'solicitudes_a_convertir' => SolicitudCompra::where('estado', 'aprobada')->whereNull('compra_id')->count(),
             ],
+            'solicitudes' => $this->solicitudes(),
         ]);
+    }
+
+    /** Solicitudes de reposición para el tab (con su proveedor sugerido y el estado del circuito). */
+    private function solicitudes(): array
+    {
+        if ($this->tab !== 'solicitudes') {
+            return [];
+        }
+
+        return SolicitudCompra::with(['producto:id,nombre,codigo,proveedor_id,precio_compra', 'producto.proveedor:id,nombre',
+            'proveedor:id,nombre', 'local:id,nombre', 'solicitante:id,name', 'compra:id,numero,estado'])
+            ->when($this->solEstado !== 'todos', fn ($q) => $q->where('estado', $this->solEstado))
+            ->orderByDesc('id')->limit(200)->get()
+            ->map(function (SolicitudCompra $s) {
+                $prov = $s->proveedorEfectivo();
+                $costo = (float) ($s->producto?->precio_compra ?? 0);
+
+                return [
+                    'id' => $s->id,
+                    'numero' => $s->numero,
+                    'producto' => $s->producto?->nombre ?? '—',
+                    'codigo' => $s->producto?->codigo ?? '',
+                    'proveedor' => $prov?->nombre,
+                    'local' => $s->local?->nombre ?? '—',
+                    'solicitante' => $s->solicitante?->name ?? '—',
+                    'cantidad' => $s->cantidad,
+                    'costo_estimado' => round($s->cantidad * $costo, 2),
+                    'nota' => $s->nota,
+                    'estado' => $s->estado,
+                    'estado_label' => $s->estadoLabel(),
+                    'motivo' => $s->motivo_rechazo,
+                    'compra' => $s->compra?->numero,
+                    'compra_estado' => $s->compra?->estado,
+                    'fecha' => $s->created_at?->format('d/m/Y'),
+                    'convertible' => $s->estado === 'aprobada' && ! $s->compra_id && $prov !== null,
+                    'sin_proveedor' => $prov === null,
+                ];
+            })->all();
     }
 }

@@ -7,6 +7,7 @@ use App\Models\CobroMedio;
 use App\Models\Cuota;
 use App\Models\MovimientoCaja;
 use App\Models\MovimientoCliente;
+use App\Support\Comprobantes;
 use App\Support\Recibo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -102,11 +103,13 @@ class Cobranza
                 ]);
             }
 
-            // 3) Haber único al cliente por el TOTAL (con el detalle del/los medio/s).
+            // 3) RECIBO fiscal + haber único al cliente por el TOTAL (con el detalle del/los medio/s).
+            $recibo = Comprobantes::reciboDeCobro($cobro);
             MovimientoCliente::create([
                 'cliente_id' => $cuota->cliente_id, 'tipo' => 'haber',
                 'concepto' => "Cobro Venta {$ref} ({$detMedios})", 'monto' => $montoRecibido,
-                'fecha' => now(), 'referencia' => $ref,
+                'fecha' => now(), 'fecha_vencimiento' => now(), 'referencia' => $ref,
+                'comprobante_id' => $recibo?->id,
             ]);
 
             // 4) Imputar el total a la cuota y a las siguientes pendientes del MISMO crédito.
@@ -127,7 +130,7 @@ class Cobranza
                         MovimientoCliente::create([
                             'cliente_id' => $c->cliente_id, 'tipo' => 'debe',
                             'concepto' => "Mora cuota {$c->numero} Venta {$ref} ({$c->diasMora($al)} días)",
-                            'monto' => $mora, 'fecha' => now(), 'referencia' => $ref,
+                            'monto' => $mora, 'fecha' => now(), 'fecha_vencimiento' => now(), 'referencia' => $ref,
                         ]);
                     }
                     $c->update(['estado' => 'cobrada', 'pagado_monto' => (float) $c->monto, 'cobrada_at' => now()]);

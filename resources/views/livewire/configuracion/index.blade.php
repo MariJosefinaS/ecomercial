@@ -130,6 +130,52 @@
             </button>
         </div>
     </x-panel>
+
+    {{-- ===== Parámetros fiscales (comprobantes) ===== --}}
+    <x-panel title="Datos fiscales de la empresa">
+        <p class="px-5 pt-4 text-xs text-muted">Definen qué letra de comprobante se emite y cómo se calcula el IVA. Se aplican a los comprobantes <b>nuevos</b>: los ya emitidos conservan lo que tenían.</p>
+        <div class="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4">
+            <div>
+                <label class="mb-1 block text-xs font-bold uppercase tracking-wide text-muted">Condición de IVA</label>
+                <select wire:model.live="fiscCondicion" class="w-full rounded-lg border border-gray-200 px-2 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20">
+                    @foreach (\App\Support\Comprobantes::CONDICIONES as $k => $lbl)
+                        <option value="{{ $k }}">{{ $lbl }}</option>
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-muted">
+                    @if ($fiscCondicion === 'responsable_inscripto')
+                        Emite <b class="text-brand">A</b> a responsables inscriptos y <b class="text-brand">B</b> al resto.
+                    @else
+                        Emite siempre <b class="text-brand">C</b>.
+                    @endif
+                </p>
+                @error('fiscCondicion') <p class="mt-1 text-xs font-semibold text-danger">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-bold uppercase tracking-wide text-muted">Punto de venta</label>
+                <input type="number" min="1" max="9999" wire:model="fiscPuntoVenta" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                <p class="mt-1 text-xs text-muted">Va al principio del número: <b>{{ str_pad($fiscPuntoVenta ?: '1', 4, '0', STR_PAD_LEFT) }}</b>-00000001</p>
+                @error('fiscPuntoVenta') <p class="mt-1 text-xs font-semibold text-danger">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-bold uppercase tracking-wide text-muted">Alícuota de IVA (%)</label>
+                <input type="number" step="0.01" min="0" max="100" wire:model="fiscIvaPct" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                <p class="mt-1 text-xs text-muted">Los precios de venta son finales: el neto se calcula hacia atrás.</p>
+                @error('fiscIvaPct') <p class="mt-1 text-xs font-semibold text-danger">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-bold uppercase tracking-wide text-muted">Plazo cta. cte. (días)</label>
+                <input type="number" min="0" max="365" wire:model="fiscPlazoCtaCte" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                <p class="mt-1 text-xs text-muted">Vencimiento por defecto de una factura que no es a crédito.</p>
+                @error('fiscPlazoCtaCte') <p class="mt-1 text-xs font-semibold text-danger">{{ $message }}</p> @enderror
+            </div>
+        </div>
+        <div class="px-5 pb-5">
+            <button wire:click="guardarFiscal" class="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-dark">
+                <span class="material-symbols-outlined text-[20px]">save</span> Guardar datos fiscales
+            </button>
+        </div>
+    </x-panel>
     @endif
 
     {{-- ===== Sucursales / locales ===== --}}

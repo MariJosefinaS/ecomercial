@@ -433,6 +433,12 @@ class Index extends Component
                 $extra = " Cliente «{$venta->cliente->nombre}» habilitado.";
             }
 
+            // FACTURA (A/B/C según la condición de IVA del cliente). Idempotente.
+            $factura = \App\Support\Comprobantes::facturaDeVenta($venta);
+            if ($factura) {
+                $extra .= " Se emitió {$factura->etiqueta()}.";
+            }
+
             // Si es a crédito, impacta la cuenta corriente del cliente.
             if ($venta->credito && $venta->cliente_id) {
                 if ($venta->plan_codigo && PlanesCredito::esCredito($venta->plan_codigo)) {
@@ -454,7 +460,9 @@ class Index extends Component
                         'concepto' => "Venta {$venta->numero} — saldo financiado ({$n} cuotas, {$venta->modalidad})",
                         'monto' => $calc['total_financiado'],
                         'fecha' => now(),
+                        'fecha_vencimiento' => $primeraCuota->copy(),
                         'referencia' => $venta->numero,
+                        'comprobante_id' => $factura?->id,
                     ]);
 
                     foreach ($cronograma as $c) {
@@ -481,7 +489,9 @@ class Index extends Component
                         'concepto' => "Venta {$venta->numero} ({$venta->medio_pago})",
                         'monto' => $venta->total,
                         'fecha' => now(),
+                        'fecha_vencimiento' => $factura?->fecha_vencimiento ?? now(),
                         'referencia' => $venta->numero,
+                        'comprobante_id' => $factura?->id,
                     ]);
                     $extra .= ' Cargada a su cuenta corriente.';
                 }

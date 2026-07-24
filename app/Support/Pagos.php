@@ -6,6 +6,7 @@ use App\Models\ChequeCliente;
 use App\Models\MovimientoCaja;
 use App\Models\PagoProveedor;
 use App\Models\PedidoPago;
+use App\Support\Comprobantes;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -98,7 +99,13 @@ class Pagos
 
             $p->update(['estado' => 'pagado', 'procesado_por' => $userId, 'procesado_at' => now(), 'resultado_ref' => $ref]);
 
-            return ['ok' => true, 'ref' => $ref, 'mensaje' => 'Pago procesado — egreso en caja registrado.'];
+            // ORDEN DE PAGO: el comprobante interno que respalda el egreso.
+            $op = Comprobantes::ordenDePago($p->fresh());
+
+            return [
+                'ok' => true, 'ref' => $ref, 'comprobante_id' => $op?->id,
+                'mensaje' => 'Pago procesado' . ($op ? " — {$op->etiqueta()} emitida" : '') . ' — egreso en caja registrado.',
+            ];
         });
     }
 

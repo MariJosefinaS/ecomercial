@@ -11,14 +11,33 @@ class Producto extends Model
 {
     protected $table = 'productos';
 
-    protected $fillable = ['codigo', 'sku', 'codigo_externo', 'nombre', 'marca', 'imagen', 'descripcion', 'detalles', 'tags', 'categoria_id', 'proveedor_id', 'unidad', 'activo', 'precio_compra', 'precio_neto', 'conceptos'];
+    protected $fillable = ['codigo', 'sku', 'codigo_externo', 'nombre', 'marca', 'imagen', 'imagenes', 'descripcion', 'detalles', 'tags', 'categoria_id', 'proveedor_id', 'unidad', 'activo', 'precio_compra', 'precio_neto', 'conceptos'];
 
-    protected $casts = ['activo' => 'boolean', 'precio_compra' => 'decimal:2', 'precio_neto' => 'decimal:2', 'conceptos' => 'array', 'detalles' => 'array'];
+    protected $casts = ['activo' => 'boolean', 'precio_compra' => 'decimal:2', 'precio_neto' => 'decimal:2', 'conceptos' => 'array', 'detalles' => 'array', 'imagenes' => 'array'];
 
-    /** URL pública de la imagen (o null si no tiene). */
+    /** URL pública de la imagen de PORTADA (o null si no tiene). */
     public function imagenUrl(): ?string
     {
         return $this->imagen ? asset('storage/' . $this->imagen) : null;
+    }
+
+    /** Rutas de todas las imágenes de la galería (la portada primero). */
+    public function imagenesGaleria(): array
+    {
+        $lista = $this->imagenes ?: ($this->imagen ? [$this->imagen] : []);
+
+        // La portada siempre va primero, sin duplicar.
+        if ($this->imagen && in_array($this->imagen, $lista, true)) {
+            $lista = array_merge([$this->imagen], array_values(array_diff($lista, [$this->imagen])));
+        }
+
+        return array_values(array_unique($lista));
+    }
+
+    /** URLs públicas de la galería completa. @return array<int,string> */
+    public function imagenesUrls(): array
+    {
+        return array_map(fn ($ruta) => asset('storage/' . $ruta), $this->imagenesGaleria());
     }
 
     public function categoria(): BelongsTo { return $this->belongsTo(Categoria::class); }

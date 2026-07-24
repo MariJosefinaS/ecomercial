@@ -24,7 +24,9 @@ $check = function (string $label, bool $ok, string $extra = '') use (&$fail) {
 };
 
 $dueno   = User::where('email', 'dueno@ecomercial.com')->first();
-$marcos  = User::where('name', 'Marcos Lima')->first();       // cobrador de Rioja Este (20 cuotas)
+// Cobrador de Rioja Este resuelto por la ZONA (el asignado cambia: hoy es Josefina).
+$marcos = \App\Models\Zona::where('nombre', 'like', '%Rioja Este%')->first()?->cobrador
+    ?? User::whereHas('zonasComoCobrador')->first();
 $ricardo = User::where('name', 'Ricardo Mendes')->first();     // cobrador de Distritos Chilecito (0 cuotas)
 $riojaEste = Zona::where('nombre', 'Rioja Este')->first();
 
@@ -35,7 +37,9 @@ try {
         ->set('planCodigo', 'd30_020')
         ->set('paso', 3)
         ->set('zonaId', $riojaEste->id);
-    $check('elegir zona auto-completa el cobrador', $comp->get('cobrador') === 'Marcos Lima', $comp->get('cobrador'));
+    // El cobrador esperado es el que la zona tenga asignado HOY (cambia con las reasignaciones).
+    $esperado = $riojaEste->cobrador?->name;
+    $check('elegir zona auto-completa el cobrador', $comp->get('cobrador') === $esperado, $comp->get('cobrador') . " (esperado: {$esperado})");
     $check('elegir zona setea el nombre de zona', $comp->get('zonaCobranza') === 'Rioja Este');
     $check('render wizard con select de zona', str_contains($comp->html(), 'wire:model.live="zonaId"'));
 } catch (\Throwable $e) {
@@ -107,20 +111,21 @@ Auth::login($dueno);
 $msg = Livewire::test(Usuarios::class)->call('eliminarUsuario', $dueno->id)->get('mensaje');
 $check('no borra tu propio usuario', User::find($dueno->id) !== null && str_contains((string) $msg, 'propio'), (string) $msg);
 
-// ===== 3. Scoping de cobranza (cobrador ve solo su planilla) =====
-$countAtrasadas = function (User $u): int {
-    Auth::login($u);
-    return count(Livewire::test(Cobranza::class)->viewData('atrasadas'));
-};
-$aDueno   = $countAtrasadas($dueno);
-$aMarcos  = $countAtrasadas($marcos);
-$aRicardo = $countAtrasadas($ricardo);
-$check('dueño (global) ve cuotas atrasadas', $aDueno > 0, "atrasadas=$aDueno");
-$check('Marcos (Rioja Este) ve su planilla', $aMarcos === $aDueno, "atrasadas=$aMarcos");
-$check('Ricardo (zona sin cuotas) NO ve las de Marcos', $aRicardo === 0, "atrasadas=$aRicardo");
-Auth::login($marcos);
-$check('flag vistaGlobal=false para cobrador', Livewire::test(Cobranza::class)->viewData('vistaGlobal') === false);
+// ===== 3. Tablero de SUPERVISIÓN de cobranza =====
+// Desde 2026-07-20 el tablero vive en Tesorería y exige `supervisar_cobranza`:
+// el cobrador de calle NO entra (su pantalla es "Mi planilla", cubierta en verify_bloque2).
 Auth::login($dueno);
-$check('flag vistaGlobal=true para dueño', Livewire::test(Cobranza::class)->viewData('vistaGlobal') === true);
+$aDueno = count(Livewire::test(Cobranza::class)->viewData('atrasadas'));
+$check('dueño (global) ve cuotas atrasadas', $aDueno > 0, "atrasadas=$aDueno");
+
+Auth::login($marcos);
+try {
+    Livewire::test(Cobranza::class)->assertForbidden();
+    $check('el cobrador NO accede al tablero de supervisión (403)', true);
+} catch (\Throwable $e) {
+    $check('el cobrador NO accede al tablero de supervisión (403)', false, $e->getMessage());
+}
+Auth::login($dueno);
+$check('el supervisor sí renderiza el tablero', strlen(Livewire::test(Cobranza::class)->html()) > 800);
 
 echo $fail ? "\n❌ {$fail} con error\n" : "\n✅ BLOQUE 1 COMPLETO — dropdown + eliminar/baja usuario + scoping\n";

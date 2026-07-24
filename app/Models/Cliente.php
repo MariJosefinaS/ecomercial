@@ -9,7 +9,7 @@ class Cliente extends Model
 {
     protected $table = 'clientes';
 
-    protected $fillable = ['nombre', 'numero_cuenta', 'tipo_doc', 'documento', 'telefono', 'email', 'fecha_nacimiento', 'direccion', 'zona_id', 'limite_credito', 'riesgo', 'activo', 'aprobado'];
+    protected $fillable = ['nombre', 'numero_cuenta', 'tipo_doc', 'documento', 'tipo_iva', 'ingresos_brutos', 'telefono', 'email', 'fecha_nacimiento', 'direccion', 'zona_id', 'limite_credito', 'riesgo', 'activo', 'aprobado'];
 
     protected $casts = ['numero_cuenta' => 'integer', 'limite_credito' => 'decimal:2', 'activo' => 'boolean', 'aprobado' => 'boolean', 'fecha_nacimiento' => 'date'];
 

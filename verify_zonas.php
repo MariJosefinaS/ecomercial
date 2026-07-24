@@ -44,9 +44,9 @@ try {
     DB::rollBack();
 }
 
-// 4. esCobrador
-$marcos = User::where('name', 'Marcos Lima')->first();
-$check('Marcos Lima esCobrador() = true', $marcos->esCobrador());
+// 4. esCobrador — se resuelve por la ZONA (el cobrador asignado cambia con el tiempo).
+$conZona = \App\Models\Zona::whereNotNull('cobrador_id')->first()?->cobrador;
+$check('quien tiene una zona asignada → esCobrador() = true', (bool) $conZona?->esCobrador(), $conZona?->name ?? 'nadie');
 $check('Dueño esCobrador() = false', ! User::where('name', 'Dueño')->first()->esCobrador());
 
 // 5. render
